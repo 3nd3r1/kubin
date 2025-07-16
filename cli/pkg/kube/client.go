@@ -2,11 +2,15 @@ package kube
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/homedir"
 )
 
 type KubeClient struct {
@@ -14,10 +18,19 @@ type KubeClient struct {
 }
 
 func NewKubeClient() (*KubeClient, error) {
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		return nil, err
-	}
+    kubeconfigPath := os.Getenv("KUBECONFIG")
+    if kubeconfigPath == "" {
+        if home := homedir.HomeDir(); home != "" {
+            kubeconfigPath = filepath.Join(home, ".kube", "config")
+        } else {
+            return nil, fmt.Errorf("failed to find kubeconfig path")
+        }
+    }
+
+    config, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+    if err != nil {
+        return nil, err
+    }
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
