@@ -7,10 +7,10 @@ import (
 )
 
 type CoreCollector struct {
-	client *kube.KubeClient
+	client kube.Client
 }
 
-func NewCoreCollector(client *kube.KubeClient) *CoreCollector {
+func NewCoreCollector(client kube.Client) *CoreCollector {
 	return &CoreCollector{client: client}
 }
 

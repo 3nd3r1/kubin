@@ -13,9 +13,17 @@ import (
 	"k8s.io/client-go/util/homedir"
 )
 
+type Client interface {
+    GetNamespaces(ctx context.Context) ([]corev1.Namespace, error)
+    GetPods(ctx context.Context, namespace string) ([]corev1.Pod, error)
+    GetPodLogs(ctx context.Context, namespace string, podName string) (string, error)
+}
+
 type KubeClient struct {
 	clientset *kubernetes.Clientset
 }
+
+var _ Client = (*KubeClient)(nil)
 
 func NewKubeClient() (*KubeClient, error) {
     kubeconfigPath := os.Getenv("KUBECONFIG")
