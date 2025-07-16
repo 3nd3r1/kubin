@@ -19,3 +19,7 @@ release:
 			-o dist/$(BINARY_NAME)-$(VERSION)-$$os-$$arch ./main.go; \
 		done; \
 	done
+
+.PHONY: test
+test:
+	go test ./...
