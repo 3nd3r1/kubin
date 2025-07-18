@@ -13,6 +13,13 @@ var (
 )
 
 type AppConfig struct {
+	Server struct {
+		Port         int    `envconfig:"SERVER_PORT" default:"8080"`
+		ReadTimeout  int    `envconfig:"SERVER_READ_TIMEOUT" default:"10"`
+		WriteTimeout int    `envconfig:"SERVER_WRITE_TIMEOUT" default:"10"`
+		IdleTimeout  int    `envconfig:"SERVER_IDLE_TIMEOUT" default:"10"`
+		Env          string `envconfig:"SERVER_ENV" default:"development"`
+	} `split_words:"true"`
 }
 
 func init() {

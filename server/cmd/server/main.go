@@ -1,28 +1,23 @@
 package main
 
 import (
-    "net/http"
+	"context"
+
+	"github.com/3nd3r1/kubin/server/internal/api"
+	"github.com/3nd3r1/kubin/server/internal/log"
+	"github.com/3nd3r1/kubin/server/internal/router"
+	"github.com/3nd3r1/kubin/server/internal/server"
 )
 
 func main() {
-    cfg, err := config.Load()
-    if err != nil {
-        log.Fatalf("Failed to load config: %v", err)
-    }
+	ctx := context.Background()
+	handler := api.NewSnapshotHandler()
+	r := router.New()
 
-    // Initialize storage (in-memory for now)
-    repo := memory.NewSnapshotRepository()
-    objectStore := memory.NewObjectStore()
+	router.RegisterRoutes(r, handler)
 
-    // Create services
-    svc := service.New(repo, objectStore)
-
-    // Setup HTTP server
-    handler := api.New(svc)
-    router := api.NewRouter(handler)
-
-    log.Printf("Starting server on :%d", cfg.HTTPPort)
-    if err := http.ListenAndServe(":"+strconv.Itoa(cfg.HTTPPort), router); err != nil {
-        log.Fatalf("Server failed: %v", err)
-    }
+	srv := server.New(r)
+	if err := srv.Start(ctx); err != nil {
+		log.WithError(err).Fatal("Failed starting server")
+	}
 }

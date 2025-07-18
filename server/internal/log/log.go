@@ -45,21 +45,21 @@ func WithError(err error) *zap.SugaredLogger {
 }
 
 // Debug logs at Debug level
-func Debug(msg string, fields ...any) {
-	logger.Debugw(msg, fields...)
+func Debug(msg string) {
+	logger.Debug(msg)
 }
 
 // Info logs at Info level
-func Info(msg string, fields ...any) {
-	logger.Infow(msg, fields...)
+func Info(msg string) {
+	logger.Info(msg)
 }
 
 // Error logs at Error level
-func Error(msg string, fields ...any) {
-	logger.Errorw(msg, fields...)
+func Error(msg string) {
+	logger.Error(msg)
 }
 
 // Fatal logs at Fatal level and exits
-func Fatal(msg string, fields ...any) {
-	logger.Fatalw(msg, fields...)
+func Fatal(msg string) {
+	logger.Fatal(msg)
 }
