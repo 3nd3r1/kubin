@@ -1,47 +1,36 @@
-# Kubin UI
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-Lens-like interface for viewing Kubernetes cluster snapshots.
+## Getting Started
 
-## What it does
-
-- View cluster state as it was at snapshot time
-- Navigate resources like in Lens (namespaces → pods → details)
-- See pod logs and resource details
-- Share snapshot links with team members
-
-## Features
-
-- **Historical Viewing** - Explore cluster state at any point in time
-- **Lens-like Navigation** - Familiar Kubernetes dashboard experience
-- **Pod-focused** - Detailed pod information and logs
-- **Shareable Links** - One-click sharing for debugging
-
-## Usage
-
-1. Get a snapshot link from CLI: `kubin create`
-2. Open link in browser
-3. Navigate cluster resources like in Lens
-4. Share link with team for debugging
-
-## Development
+First, run the development server:
 
 ```bash
-# Install dependencies
-npm install
-
-# Run development server
 npm run dev
-
-# Build for production
-npm run build
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-## Deploy
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-The UI is deployed alongside the Kubin server.
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-## Tech Stack
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-- React/Next.js
-- TypeScript
-- Tailwind CSS 
+## Learn More
+
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
