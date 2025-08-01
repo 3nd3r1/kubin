@@ -11,24 +11,28 @@ Think of it as a "time machine" for your Kubernetes cluster. Instead of sharing 
 ## Core Responsibilities
 
 ### 1. Snapshot Exploration
+
 - Displays cluster state as it existed at snapshot time
 - Shows hierarchical view of namespaces and resources
 - Provides detailed resource information and relationships
 - Displays pod logs that were captured in the snapshot
 
 ### 2. Resource Navigation
+
 - Hierarchical navigation like Lens (namespaces → resources → details)
 - Focus on pods as the primary resource (MVP)
 - Clean, structured display of resource data
 - Easy navigation between related resources
 
 ### 3. Historical Analysis
+
 - View cluster state at specific points in time
 - Compare different snapshots to see changes
 - Analyze what was happening when issues occurred
 - Debug problems using historical context
 
 ### 4. Sharing & Collaboration
+
 - Share snapshot links with team members
 - Embed snapshots in documentation or tickets
 - Provide read-only access to cluster state
@@ -46,6 +50,7 @@ Think of it as a "time machine" for your Kubernetes cluster. Instead of sharing 
 ## User Experience
 
 Users can:
+
 - Open a snapshot link and see the cluster as it was
 - Navigate through namespaces and resources like in Lens
 - Click on pods to see their details and captured logs
@@ -55,6 +60,7 @@ Users can:
 ## Interface Design
 
 The UI follows:
+
 - **Lens-inspired**: Familiar Kubernetes dashboard layout
 - **Snapshot-aware**: Clear indication of historical data
 - **Clean Formatting**: Well-structured resource displays
@@ -73,4 +79,4 @@ The UI follows:
 - **Kubin Server**: Fetches snapshot data via REST API
 - **Snapshot Data**: Displays captured cluster state and logs
 - **Share Links**: Generates and handles shareable URLs
-- **Authentication**: Integrates with server's auth system 
+- **Authentication**: Integrates with server's auth system
