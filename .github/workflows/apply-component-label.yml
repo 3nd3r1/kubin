@@ -6,6 +6,8 @@ on:
 jobs:
   label-issues:
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
     steps:
       - name: Check for Component Selection
         uses: actions/github-script@v6
