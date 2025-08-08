@@ -1,0 +1,21 @@
+name: Subtask
+description: A technical task linked to a parent issue.
+labels: ["type:subtask"]
+projects: [3nd3r1/6]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### Parent Issue
+        Link to the parent feature/story: #123
+  - type: textarea
+    attributes:
+      label: "Description"
+      description: "What needs to be done?"
+  - type: textarea
+    attributes:
+      label: "Acceptance Criteria"
+      description: "How will we know this is done?"
+      placeholder: |
+        - [ ] Criteria 1
+        - [ ] Criteria 2

@@ -1,0 +1,16 @@
+name: Feature
+description: A user-facing feature or improvement.
+labels: ["type:feature"]
+projects: [3nd3r1/6]
+body:
+  - type: textarea
+    attributes:
+      label: "User Story"
+      placeholder: "As a user, I want..."
+  - type: textarea
+    attributes:
+      label: "Subtasks"
+      description: "Break down into technical tasks (edit as you go)."
+      placeholder: |
+        - [ ] Subtask 1 (e.g., #124)
+        - [ ] Subtask 2 (e.g., #125)
