@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/3nd3r1/kubin/server/internal/api"
 	"github.com/3nd3r1/kubin/server/internal/log"
@@ -10,14 +13,25 @@ import (
 )
 
 func main() {
-	ctx := context.Background()
-	handler := api.NewSnapshotHandler()
-	r := router.New()
+	// Create context that listens for interrupt signals
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
+	// Initialize logger
+	log.Info("Starting Kubin server...")
+
+	// Create handlers
+	handler := api.NewSnapshotHandler()
+
+	// Create router and register routes
+	r := router.New()
 	router.RegisterRoutes(r, handler)
 
+	// Create and start server
 	srv := server.New(r)
+
+	log.Info("Server initialized, starting...")
 	if err := srv.Start(ctx); err != nil {
-		log.WithError(err).Fatal("Failed starting server")
+		log.WithError(err).Fatal("Server failed")
 	}
 }

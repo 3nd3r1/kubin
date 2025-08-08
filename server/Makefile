@@ -26,6 +26,11 @@ run: build ## Build and run server
 	@echo "🚀 Running server..."
 	./kubin-server
 
+.PHONY: format
+format: ## Format code
+	@echo "🧹 Formatting code..."
+	go fmt ./...
+
 .PHONY: clean
 clean: ## Clean build artifacts
 	@echo "🧹 Cleaning..."
