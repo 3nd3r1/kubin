@@ -20,12 +20,6 @@ body:
       placeholder: |
         - [ ] Criteria 1 (e.g., "Command supports `--dry-run` flag")
         - [ ] Criteria 2 (e.g., "Logs output to stdout")
-  - type: textarea
-    attributes:
-      label: "Subtasks"
-      description: "Other tasks that need to be completed before this one can be completed."
-      placeholder: |
-        - #123 (Subtask 1)
   - type: dropdown
     id: component
     attributes:

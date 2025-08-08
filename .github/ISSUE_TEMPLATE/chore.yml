@@ -13,11 +13,6 @@ body:
         Refactor the CLI command loader to support plugins.
     validations:
       required: true
-  - type: textarea
-    attributes:
-      label: "Subtasks"
-      placeholder: |
-        - #123 (Subtask 1)
   - type: dropdown
     id: component
     attributes:
@@ -26,4 +21,3 @@ body:
         - "UI"
         - "Server"
         - "CLI"
-        - "Tooling"
