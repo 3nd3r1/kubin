@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 )
 
 type Router struct {
@@ -42,25 +41,4 @@ func (r *Router) Subrouter(prefix string) *Router {
 	sub := New()
 	r.mux.Mount(prefix, sub.mux)
 	return sub
-}
-
-// Methods restricts the handler to specific HTTP methods
-func (r *Router) Methods(methods ...string) *methodRouter {
-	return &methodRouter{
-		router:  r,
-		methods: methods,
-	}
-}
-
-type methodRouter struct {
-	router  *Router
-	methods []string
-}
-
-func (mr *methodRouter) Handle(pattern string, handler http.Handler) {
-	mr.router.mux.With(middleware.Method(mr.methods...)).Handle(pattern, handler)
-}
-
-func (mr *methodRouter) HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
-	mr.Handle(pattern, http.HandlerFunc(handler))
 }

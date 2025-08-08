@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/3nd3r1/kubin/server/internal/api"
+	"github.com/go-chi/chi/v5"
 )
 
 func RegisterRoutes(r *Router, handler *api.SnapshotHandler) {
@@ -23,17 +24,19 @@ func RegisterRoutes(r *Router, handler *api.SnapshotHandler) {
 	apiV1 := r.Subrouter("/api/v1")
 	apiV1.Use(jsonMiddleware)
 
-	// Snapshots collection
-	apiV1.Methods("GET").HandleFunc("/snapshots", handler.ListSnapshots)
-	apiV1.Methods("POST").HandleFunc("/snapshots", handler.UploadSnapshot)
+	apiV1.mux.Route("/api/v1/snapshots", func(r chi.Router) {
+		r.Get("/", handler.ListSnapshots)
+		r.Post("/", handler.UploadSnapshot)
+	})
 
 	// Internal API for UI
 	internalAPI := r.Subrouter("/internal/api/v1")
 	internalAPI.Use(jsonMiddleware)
 
-	// Internal snapshot endpoints
-	internalAPI.Methods("GET").HandleFunc("/snapshots/{id}/resources", handler.GetSnapshotResources)
-	internalAPI.Methods("GET").HandleFunc("/snapshots/{id}/pods", handler.GetSnapshotPods)
-	internalAPI.Methods("GET").HandleFunc("/snapshots/{id}/logs", handler.GetPodLogs)
-	internalAPI.Methods("GET").HandleFunc("/snapshots/{id}/namespaces", handler.GetSnapshotNamespaces)
+	internalAPI.mux.Route("/internal/api/v1/snapshots/{id}", func(r chi.Router) {
+		r.Get("/resources", handler.GetSnapshotResources)
+		r.Get("/pods", handler.GetSnapshotPods)
+		r.Get("/logs", handler.GetPodLogs)
+		r.Get("/namespaces", handler.GetSnapshotNamespaces)
+	})
 }
