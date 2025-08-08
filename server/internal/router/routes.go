@@ -24,7 +24,8 @@ func RegisterRoutes(r *Router, handler *api.SnapshotHandler) {
 	apiV1 := r.Subrouter("/api/v1")
 	apiV1.Use(jsonMiddleware)
 
-	apiV1.mux.Route("/api/v1/snapshots", func(r chi.Router) {
+	// Snapshots collection using chi's method routing
+	apiV1.mux.Route("/snapshots", func(r chi.Router) {
 		r.Get("/", handler.ListSnapshots)
 		r.Post("/", handler.UploadSnapshot)
 	})
@@ -33,7 +34,8 @@ func RegisterRoutes(r *Router, handler *api.SnapshotHandler) {
 	internalAPI := r.Subrouter("/internal/api/v1")
 	internalAPI.Use(jsonMiddleware)
 
-	internalAPI.mux.Route("/internal/api/v1/snapshots/{id}", func(r chi.Router) {
+	// Internal snapshot endpoints
+	internalAPI.mux.Route("/snapshots/{id}", func(r chi.Router) {
 		r.Get("/resources", handler.GetSnapshotResources)
 		r.Get("/pods", handler.GetSnapshotPods)
 		r.Get("/logs", handler.GetPodLogs)
