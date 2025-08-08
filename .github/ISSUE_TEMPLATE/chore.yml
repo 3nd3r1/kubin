@@ -2,6 +2,7 @@ name: Chore
 description: Internal improvements (tooling, refactors, etc.).
 title: "Something is out of date"
 labels: ["type:chore"]
+projects: [3nd3r1/6]
 body:
   - type: textarea
     attributes:

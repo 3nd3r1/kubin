@@ -2,6 +2,7 @@ name: Documentation
 description: Updates to docs or READMEs.
 title: "Something needs updating"
 labels: ["type:docs"]
+projects: [3nd3r1/6]
 body:
   - type: textarea
     attributes:

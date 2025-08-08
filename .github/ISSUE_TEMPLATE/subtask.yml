@@ -3,12 +3,6 @@ description: A technical task linked to a parent issue.
 labels: ["type:subtask"]
 projects: [3nd3r1/6]
 body:
-  - type: input
-    attributes:
-      label: "Parent Issue"
-      placeholder: "#123"
-    validations:
-      required: true
   - type: textarea
     attributes:
       label: "Description"
