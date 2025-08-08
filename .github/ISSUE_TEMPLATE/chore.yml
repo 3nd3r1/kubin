@@ -1,0 +1,28 @@
+name: Chore
+description: Internal improvements (tooling, refactors, etc.).
+title: "Something is out of date"
+labels: ["type:chore"]
+body:
+  - type: textarea
+    attributes:
+      label: "Description"
+      placeholder: |
+        What needs to be done?
+        Example:
+        Refactor the CLI command loader to support plugins.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: "Subtasks"
+      placeholder: |
+        - #123 (Subtask 1)
+  - type: dropdown
+    id: component
+    attributes:
+      label: "Component"
+      options:
+        - "UI"
+        - "Server"
+        - "CLI"
+        - "Tooling"

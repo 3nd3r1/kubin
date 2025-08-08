@@ -1,0 +1,46 @@
+name: Apply Component Labels
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  label-issues:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for Component Selection
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { issue, repository } = context.payload;
+            const componentMap = {
+              "UI": "component:ui",
+              "Server": "component:server",
+              "CLI": "component:cli"
+            };
+
+            // Get selected component from form (if any)
+            const componentField = issue.body.match(/### Component\n\n(.*?)(\n|$)/)?.[1]?.trim();
+            const componentLabel = componentMap[componentField];
+
+            // Remove existing component labels
+            const currentLabels = issue.labels.map(label => label.name);
+            const componentLabels = currentLabels.filter(label => label.startsWith('component:'));
+
+            if (componentLabels.length > 0) {
+              await github.rest.issues.removeLabel({
+                issue_number: issue.number,
+                owner: repository.owner.login,
+                repo: repository.name,
+                name: componentLabels[0]
+              });
+            }
+
+            // Add new component label
+            if (componentLabel) {
+              await github.rest.issues.addLabels({
+                issue_number: issue.number,
+                owner: repository.owner.login,
+                repo: repository.name,
+                labels: [componentLabel]
+              });
+            }

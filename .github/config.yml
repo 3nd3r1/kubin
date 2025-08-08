@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🚀 Feature Request
+    url: https://github.com/3nd3r1/kubin/issues/new?template=feature.yml
+    about: Suggest a new feature
+  - name: 🐛 Bug Report
+    url: https://github.com/3nd3r1/kubin/issues/new?template=bug.yml
+    about: Report unexpected behavior

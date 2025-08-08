@@ -6,11 +6,35 @@ body:
   - type: textarea
     attributes:
       label: "User Story"
-      placeholder: "As a user, I want..."
+      description: "Follow the 'As a → I want → So that' format."
+      placeholder: |
+        As a [user role], I want [feature], so that [benefit].
+        Example:
+        As a developer, I want `kubin deploy --dry-run`, so I can test deployments safely.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: "Acceptance Criteria"
+      description: "Minimum requirements to close this issue."
+      placeholder: |
+        - [ ] Criteria 1 (e.g., "Command supports `--dry-run` flag")
+        - [ ] Criteria 2 (e.g., "Logs output to stdout")
   - type: textarea
     attributes:
       label: "Subtasks"
-      description: "Break down into technical tasks (edit as you go)."
+      description: "Other tasks that need to be completed before this one can be completed."
       placeholder: |
-        - [ ] Subtask 1 (e.g., #124)
-        - [ ] Subtask 2 (e.g., #125)
+        - #123 (Subtask 1)
+  - type: dropdown
+    id: component
+    attributes:
+      label: "Component"
+      options:
+        - "UI"
+        - "Server"
+        - "CLI"
+  - type: textarea
+    attributes:
+      label: "Additional Context"
+      placeholder: "Screenshots, links, or technical notes."

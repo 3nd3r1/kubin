@@ -1,0 +1,17 @@
+name: Documentation
+description: Updates to docs or READMEs.
+title: "Something needs updating"
+labels: ["type:docs"]
+body:
+  - type: textarea
+    attributes:
+      label: "What needs updating?"
+      placeholder: |
+        - [ ] README.md installation guide
+        - [ ] API documentation in `/docs`
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: "Additional Context"
+      placeholder: "Links to existing files or inspiration sources."
