@@ -7,31 +7,40 @@ Kubin is a "pastebin for Kubernetes" - a tool that allows you to capture, store,
 ## Core Concept
 
 When you run Kubin, it:
+
 1. Connects to your Kubernetes cluster
 2. Collects information about all your resources (pods, services, deployments, etc.)
 3. Packages everything into a compressed snapshot
-4. Uploads it to a server where you can view, share, or download it
+4. Uploads it to a microservices platform for storage and processing
+5. Provides a shareable URL for viewing the snapshot in a web interface
 
 ## Project Structure
 
-The project is divided into three main components:
+The project uses a modern microservices architecture with three main user-facing components:
 
 ### CLI Tool (`/cli`)
-A command-line tool that runs on your local machine or in CI/CD pipelines. It connects to your Kubernetes cluster, collects the snapshot data, and uploads it to the server.
 
-### Server (`/server`) 
-A web service that stores and serves the snapshots. It provides a REST API for uploading, downloading, and managing snapshots. This runs as a service that can be deployed in your own cluster or hosted externally.
+A command-line tool that runs on your local machine or in CI/CD pipelines. It connects to your Kubernetes cluster, collects the snapshot data, and uploads it to the platform. Distributed as a binary like `kubectl` or `docker`.
+
+### Microservices Platform (`/services`)
+
+A distributed backend system consisting of specialized services:
+
+- **API Gateway**: Routes requests and handles authentication
+- **Log Service**: Processes and stores log data for fast analytics
+- **Storage Service**: Handles file operations and compression
 
 ### Web UI (`/ui`)
-A web interface for browsing, viewing, and sharing snapshots. This is where users can see the contents of snapshots, compare different versions, and share links with others.
+
+A React-based web interface for browsing, viewing, and sharing snapshots. Provides a Lens-like experience for exploring historical cluster states. Deployed as a containerized application.
 
 ## How It Works
 
 1. **Capture**: CLI tool connects to your cluster and collects resource information
 2. **Package**: Data is compressed and packaged with metadata
-3. **Upload**: Snapshot is sent to the server via API
-4. **Store**: Server stores the snapshot and makes it accessible
-5. **Share**: Users can view snapshots through the web UI or download them
+3. **Upload**: Snapshot is sent to the platform via API Gateway
+4. **Process**: Services handle the data asynchronously - metadata goes to PostgreSQL, logs to ClickHouse, files to S3
+5. **Share**: Users can view snapshots through the web UI using shareable links
 
 ## Use Cases
 
@@ -40,11 +49,21 @@ A web interface for browsing, viewing, and sharing snapshots. This is where user
 - **Sharing**: Share cluster states with team members or support
 - **Backup**: Quick backup of cluster configurations
 - **Audit**: Track changes in cluster state over time
+- **Analytics**: Query and analyze historical log data
 
 ## Key Benefits
 
 - **Simple**: One command to capture entire cluster state
+- **Fast**: Optimized storage and retrieval with sub-second queries
+- **Scalable**: Microservices architecture handles high load
 - **Portable**: Snapshots can be shared and viewed anywhere
 - **Secure**: Control who can access your snapshots
-- **Fast**: Quick capture and upload process
-- **Searchable**: Find and compare snapshots easily 
+- **Searchable**: Find and compare snapshots easily with powerful analytics
+
+## Architecture Highlights
+
+- **Hybrid Communication**: Synchronous for user operations, asynchronous for heavy processing
+- **Optimized Storage**: PostgreSQL for metadata, ClickHouse for logs, S3 for files
+- **High Performance**: Sub-second search on massive datasets
+- **Cloud Native**: Kubernetes deployment with auto-scaling and monitoring
+

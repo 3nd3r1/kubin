@@ -8,6 +8,14 @@ The Kubin UI is a web interface that provides a Lens-like experience for viewing
 
 Think of it as a "time machine" for your Kubernetes cluster. Instead of sharing cluster dumps as files in Jira tickets, you run one CLI command, get a shareable link, and anyone can explore the cluster state through a familiar Kubernetes dashboard interface.
 
+## Deployment Model
+
+The UI is deployed as a containerized React application:
+
+- Container: kubin/ui:latest with Nginx serving the React build
+- Scaling: Multiple replicas behind a load balancer
+- Access: Web browser at https://kubin.company.com
+
 ## Core Responsibilities
 
 ### 1. Snapshot Exploration
