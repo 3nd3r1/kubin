@@ -16,6 +16,10 @@
 
 Kubin is a Kubernetes snapshot sharing platform that enables development teams to capture, share, and analyze historical cluster states. The platform consists of a CLI tool for uploading cluster snapshots and a web interface for querying and visualizing cluster data.
 
+### Diagram
+
+![kubin-architecture](./docs/assets/kubin_architecture.png)
+
 ### Core Requirements
 - **Immediate Response**: CLI users receive shareable URLs within 2 seconds
 - **Sub-second Queries**: Web UI loads snapshot data in under 2 seconds
