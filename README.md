@@ -1,4 +1,4 @@
-# Kubin
+# Kubin (WIP)
 
 ![Kubin Logo](docs/assets/logo.png)
 
