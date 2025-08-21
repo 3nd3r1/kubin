@@ -26,29 +26,70 @@ jobs:
               "CLI": "components:cli"
             };
 
-            // Get selected component from form (if any)
-            const componentField = issue.body.match(/### Component\n\n(.*?)(\n|$)/)?.[1]?.trim();
-            const componentLabel = componentMap[componentField];
+            // Extract component field from issue body - handles both single and multiple selections
+            const componentMatch = issue.body.match(/### Component\n\n(.*?)(?=\n###|\n\n###|$)/s);
+            if (!componentMatch) {
+              console.log('No component field found in issue body');
+              return;
+            }
 
-            // Remove existing component labels
+            const componentText = componentMatch[1].trim();
+            console.log('Component text found:', componentText);
+
+            // Parse selected components (handles both dropdown and comma-separated values)
+            let selectedComponents = [];
+
+            // Check if it's a dropdown selection (single line)
+            if (componentText.includes('\n') === false && componentMap[componentText]) {
+              selectedComponents = [componentText];
+            } else {
+              // Handle multiple components - split by comma, newline, or bullet points
+              selectedComponents = componentText
+                .split(/[,\n•\-\*]/)
+                .map(comp => comp.trim())
+                .filter(comp => comp && componentMap[comp]);
+            }
+
+            console.log('Selected components:', selectedComponents);
+
+            if (selectedComponents.length === 0) {
+              console.log('No valid components found');
+              return;
+            }
+
+            // Remove all existing component labels
             const currentLabels = issue.labels.map(label => label.name);
             const componentLabels = currentLabels.filter(label => label.startsWith('component:'));
 
-            if (componentLabels.length > 0) {
-              await github.rest.issues.removeLabel({
-                issue_number: issue.number,
-                owner: repository.owner.login,
-                repo: repository.name,
-                name: componentLabels[0]
-              });
+            console.log('Removing existing component labels:', componentLabels);
+
+            for (const label of componentLabels) {
+              try {
+                await github.rest.issues.removeLabel({
+                  issue_number: issue.number,
+                  owner: repository.owner.login,
+                  repo: repository.name,
+                  name: label
+                });
+              } catch (error) {
+                console.log(`Failed to remove label ${label}:`, error.message);
+              }
             }
 
-            // Add new component label
-            if (componentLabel) {
-              await github.rest.issues.addLabels({
-                issue_number: issue.number,
-                owner: repository.owner.login,
-                repo: repository.name,
-                labels: [componentLabel]
-              });
+            // Add new component labels
+            const newLabels = selectedComponents.map(comp => componentMap[comp]).filter(Boolean);
+            console.log('Adding new component labels:', newLabels);
+
+            if (newLabels.length > 0) {
+              try {
+                await github.rest.issues.addLabels({
+                  issue_number: issue.number,
+                  owner: repository.owner.login,
+                  repo: repository.name,
+                  labels: newLabels
+                });
+                console.log('Successfully added labels:', newLabels);
+              } catch (error) {
+                console.log('Failed to add labels:', error.message);
+              }
             }
