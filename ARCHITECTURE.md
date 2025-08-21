@@ -31,7 +31,7 @@ Kubin uses a microservices architecture optimized for high-throughput uploads an
 - Generates pre-signed URLs for direct uploads/downloads
 - Implements lifecycle policies and multipart uploads
 
-### Log Processing Service
+### Log Processor
 - Background parsing of raw logs into structured data
 - Batch inserts to ClickHouse for analytics
 - Handles various log formats with parallel processing
@@ -93,7 +93,7 @@ Kubin uses a microservices architecture optimized for high-throughput uploads an
 3. S3 events trigger Kafka notifications
 
 ### Phase 3: Background Processing (30-300s)
-1. Log Processing Service parses and indexes logs
+1. Log Processor parses and indexes logs
 2. Metadata status updates: `uploading` → `processing` → `completed`
 3. Query Service cache warming
 
