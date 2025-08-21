@@ -26,7 +26,13 @@ body:
       label: "Component"
       options:
         - "UI"
-        - "Server"
+        - "API Gateway"
+        - "Upload Orchestrator"
+        - "Metadata Service"
+        - "Storage Service"
+        - "Log Processor"
+        - "Query Service"
+        - "Analytics Service"
         - "CLI"
   - type: textarea
     attributes:

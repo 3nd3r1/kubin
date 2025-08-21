@@ -16,8 +16,14 @@ jobs:
             const { issue, repository } = context.payload;
             const componentMap = {
               "UI": "component:ui",
-              "Server": "component:server",
-              "CLI": "component:cli"
+              "API Gateway": "component:api-gateway",
+              "Upload Orchestrator": "component:upload-orchestrator",
+              "Metadata Service": "component:metadata-service",
+              "Storage Service": "component:storage-service",
+              "Log Processor": "components:log-processor",
+              "Query Service": "components:query-service",
+              "Analytics Service": "components:analytics-service",
+              "CLI": "components:cli"
             };
 
             // Get selected component from form (if any)
