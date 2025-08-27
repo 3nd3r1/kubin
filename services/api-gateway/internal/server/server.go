@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/3nd3r1/kubin/server/internal/config"
-	"github.com/3nd3r1/kubin/server/internal/log"
-	"github.com/3nd3r1/kubin/server/internal/router"
+	"github.com/3nd3r1/kubin/shared/log"
+	"github.com/3nd3r1/kubin/api-gateway/internal/config"
+	"github.com/3nd3r1/kubin/api-gateway/internal/router"
 )
 
 type Server struct {

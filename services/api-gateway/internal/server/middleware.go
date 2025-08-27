@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/3nd3r1/kubin/server/internal/log"
+	"github.com/3nd3r1/kubin/shared/log"
 )
 
 func loggingMiddleware(next http.Handler) http.Handler {

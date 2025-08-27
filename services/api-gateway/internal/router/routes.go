@@ -3,8 +3,9 @@ package router
 import (
 	"net/http"
 
-	"github.com/3nd3r1/kubin/server/internal/api"
 	"github.com/go-chi/chi/v5"
+
+	"github.com/3nd3r1/kubin/api-gateway/internal/api"
 )
 
 func RegisterRoutes(r *Router, handler *api.SnapshotHandler) {

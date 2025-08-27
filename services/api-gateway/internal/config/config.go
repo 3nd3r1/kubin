@@ -3,7 +3,7 @@ package config
 import (
 	"sync"
 
-	"github.com/3nd3r1/kubin/server/internal/log"
+	"github.com/3nd3r1/kubin/shared/log"
 	"github.com/kelseyhightower/envconfig"
 )
 

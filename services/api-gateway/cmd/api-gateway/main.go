@@ -6,10 +6,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/3nd3r1/kubin/server/internal/api"
-	"github.com/3nd3r1/kubin/server/internal/log"
-	"github.com/3nd3r1/kubin/server/internal/router"
-	"github.com/3nd3r1/kubin/server/internal/server"
+	"github.com/3nd3r1/kubin/api-gateway/internal/api"
+	"github.com/3nd3r1/kubin/api-gateway/internal/router"
+	"github.com/3nd3r1/kubin/api-gateway/internal/server"
+	"github.com/3nd3r1/kubin/shared/log"
 )
 
 func main() {
