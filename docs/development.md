@@ -28,6 +28,7 @@ The development environment includes:
 ## Makefile Commands
 
 ### Environment Management
+
 ```bash
 make dev          # Start all services
 make dev-down     # Stop all services
@@ -37,6 +38,7 @@ make dev-status   # Check service status
 ```
 
 ### Database Management
+
 ```bash
 make db           # Ensure database is running
 make db-reset     # Reset database
@@ -45,6 +47,7 @@ make db-restore   # Restore from backup
 ```
 
 ### Storage Management
+
 ```bash
 make storage      # Ensure storage is running
 make storage-reset # Reset MinIO storage
@@ -52,12 +55,14 @@ make storage-ls   # List storage contents
 ```
 
 ### Development Tools
+
 ```bash
 make tools        # Start pgAdmin
 make tools-down   # Stop tools
 ```
 
 ### Component Development
+
 ```bash
 # Server
 make server-run   # Run server
@@ -75,6 +80,7 @@ make ui-test      # Test UI
 ```
 
 ### Full Development Setup
+
 ```bash
 make full-dev     # Complete setup
 ```
@@ -140,22 +146,27 @@ After starting the environment:
 ## Troubleshooting
 
 ### Reset Everything
+
 ```bash
 make clean        # Stop and remove everything
 make full-dev     # Start fresh
 ```
 
 ### Database Issues
+
 ```bash
 make db-reset     # Reset database
 ```
 
 ### Storage Issues
+
 ```bash
 make storage-reset # Reset MinIO
 ```
 
 ### Service Status
+
 ```bash
 make dev-status   # Check all services
-``` 
+```
+
