@@ -1,6 +1,6 @@
 # Kubin (WIP)
 
-![Kubin Logo](docs/assets/logo.png)
+![Kubin Logo](docs/assets/logo_nobg.png)
 
 **Pastebin for Kubernetes clusters**
 
