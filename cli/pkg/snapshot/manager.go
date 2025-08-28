@@ -1,3 +1,4 @@
+// Package snapshot manages the creation of snapshots
 package snapshot
 
 import (
@@ -45,7 +46,7 @@ func (mgr *Manager) CreateSnapshot(ctx context.Context) error {
 		}
 	}
 
-    if err := mgr.persister.Finalize("kubin-snapshot.tar.gz"); err != nil {
+    if err := mgr.persister.Finalize(); err != nil {
         return err
     }
 

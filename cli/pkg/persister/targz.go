@@ -8,24 +8,25 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/3nd3r1/kubin/cli/pkg/collector"
 	"github.com/3nd3r1/kubin/cli/pkg/log"
 )
 
 type TarGzPersister struct {
-    basePath string
+	basePath string
 }
 
 func NewTarGzPersister() (*TarGzPersister, error) {
-    basePath, err := os.MkdirTemp("", "kubin-persister-*")
-    if err != nil {
-        return nil, err
-    }
+	basePath, err := os.MkdirTemp("", "kubin-persister-*")
+	if err != nil {
+		return nil, err
+	}
 
 	return &TarGzPersister{
-        basePath: basePath,
-    }, nil
+		basePath: basePath,
+	}, nil
 }
 
 func (p *TarGzPersister) Persist(resource collector.ClusterResource) error {
@@ -48,8 +49,10 @@ func (p *TarGzPersister) Persist(resource collector.ClusterResource) error {
 	return encoder.Encode(resource.Data)
 }
 
-func (p *TarGzPersister) Finalize(outputPath string) error {
-    defer p.cleanup()
+func (p *TarGzPersister) Finalize() error {
+	defer p.cleanup()
+
+	outputPath := p.generateOutputFilename()
 
 	// Create the output file
 	file, err := os.Create(outputPath)
@@ -107,7 +110,14 @@ func (p *TarGzPersister) Finalize(outputPath string) error {
 }
 
 func (p *TarGzPersister) cleanup() {
-    if err := os.RemoveAll(p.basePath); err != nil {
-        log.WithError(err).Errorf("Failed to cleanup tmp dir %s", p.basePath)
-    }
+	if err := os.RemoveAll(p.basePath); err != nil {
+		log.WithError(err).Errorf("Failed to cleanup tmp dir %s", p.basePath)
+	}
+}
+
+func (p *TarGzPersister) generateOutputFilename() string {
+	now := time.Now().UTC()
+	timestamp := now.Unix()
+	nanoseconds := now.Nanosecond()
+	return fmt.Sprintf("kubin-snapshot-%d-%09d.tar.gz", timestamp, nanoseconds)
 }

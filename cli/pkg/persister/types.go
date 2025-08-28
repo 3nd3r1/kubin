@@ -1,3 +1,4 @@
+// Package persister manages the persistation of snapshots
 package persister
 
 import (
@@ -6,5 +7,5 @@ import (
 
 type Persister interface {
 	Persist(resource collector.ClusterResource) error
-	Finalize(outputPath string) error
+	Finalize() error
 }
