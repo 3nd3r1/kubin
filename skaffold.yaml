@@ -1,0 +1,74 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: kubin-development
+
+# Build only the API Gateway for now
+build:
+  artifacts:
+    - image: kubin-api-gateway
+      context: services
+      docker:
+        dockerfile: ./api-gateway/Dockerfile
+  # Use local registry for development
+  local:
+    push: false  # Don't push to registry, just build locally
+  tagPolicy:
+    envTemplate:
+      template: "{{.IMAGE_NAME}}:dev"
+
+# Deploy using the Kubin umbrella chart
+deploy:
+  helm:
+    releases:
+      - name: kubin-dev
+        chartPath: charts/kubin
+        namespace: kubin-dev
+        createNamespace: true
+        # First install dependencies
+        upgradeOnChange: true
+        setValueTemplates:
+          global.imageTag: "dev"
+          api-gateway.image.tag: "dev"
+        setValues:
+          global.environment: "development"
+          global.imagePullPolicy: "Never"  # Use local images
+          # Override with development values
+        valuesFiles:
+          - charts/kubin/values-dev.yaml
+        wait: true
+        recreatePods: false
+
+# Port forwarding for local access
+portForward:
+  - resourceType: service
+    resourceName: kubin-dev-api-gateway
+    namespace: kubin-dev
+    port: 8000
+    localPort: 8000
+  - resourceType: service
+    resourceName: kubin-dev-postgresql
+    namespace: kubin-dev
+    port: 5432
+    localPort: 5432
+  - resourceType: service
+    resourceName: kubin-dev-redis-master
+    namespace: kubin-dev
+    port: 6379
+    localPort: 6379
+
+# Development profile
+profiles:
+  - name: dev
+    activation:
+      - command: dev
+    deploy:
+      helm:
+        releases:
+          - name: kubin-dev
+            chartPath: charts/kubin
+            namespace: kubin-dev
+            setValueTemplates:
+              global.imageTag: "dev"
+            valuesFiles:
+              - charts/kubin/values-dev.yaml
