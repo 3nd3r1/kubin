@@ -1,0 +1,6 @@
+dependencies:
+- name: api-gateway
+  repository: file://charts/api-gateway
+  version: 0.1.0
+digest: sha256:e64f1f957e939a9aa22104bcb719ba44d7a0d6989c27ec993c2ec59e11e947ec
+generated: "2025-08-29T16:18:10.819773864+03:00"

@@ -1,237 +1,107 @@
+# Kubin - Main Configuration
+
+# Global values shared across all subcharts
 global:
-  environment: development
-  imageTag: dev
-  registry: localhost:5001
-  pullPolicy: Always
+  # Environment (development, staging, production)
+  environment: production
 
-  # Common labels applied to all resources
-  labels:
-    app.kubernetes.io/name: kubin
-    app.kubernetes.io/part-of: kubin-platform
+  # Image configuration
+  imageRegistry: ghcr.io/3nd3r1/kubin
+  imageTag: "0.1.0"
+  imagePullPolicy: IfNotPresent
 
-  # Security context
-  securityContext:
-    runAsNonRoot: true
-    runAsUser: 1001
-    fsGroup: 1001
+  # Domain configuration
+  domain: kubin.example.com
 
-# ArgoCD App of Apps Configuration
 argocd:
+  enabled: false
+
+# =============================================================================
+# KUBIN SERVICES
+# =============================================================================
+
+# API Gateway - Entry point for all requests
+api-gateway:
   enabled: true
-  namespace: argocd
-  repoURL: https://github.com/3nd3r1/kubin.git
-  targetRevision: main
-  path: .
-  destinationServer: https://kubernetes.default.svc
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
 
-# Services Configuration
-services:
-  - name: api-gateway
-    enabled: true
-    syncWave: 0
-    values:
-      replicaCount: 1
-      service:
-        type: ClusterIP
-        port: 8000
-      ingress:
-        enabled: true
-        className: nginx
-        hosts:
-          - host: api.kubin.local
-            paths:
-              - path: /
-                pathType: Prefix
-      resources:
-        requests:
-          memory: "128Mi"
-          cpu: "100m"
-        limits:
-          memory: "256Mi"
-          cpu: "200m"
+  # Image configuration (inherits from global if not specified)
+  image:
+    repository: kubin-api-gateway
+    # tag: will use global.imageTag
+    # pullPolicy: will use global.imagePullPolicy
 
-  - name: upload-orchestrator
-    enabled: true
-    syncWave: 1
-    values:
-      replicaCount: 2
-      service:
-        type: ClusterIP
-        port: 8001
-      resources:
-        requests:
-          memory: "256Mi"
-          cpu: "200m"
-        limits:
-          memory: "512Mi"
-          cpu: "500m"
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 8000
+    targetPort: 8000
 
-  - name: metadata-service
-    enabled: true
-    syncWave: 1
-    values:
-      replicaCount: 1
-      service:
-        type: ClusterIP
-        port: 8002
-      resources:
-        requests:
-          memory: "128Mi"
-          cpu: "100m"
-        limits:
-          memory: "256Mi"
-          cpu: "200m"
-
-  - name: storage-service
-    enabled: true
-    syncWave: 1
-    values:
-      replicaCount: 1
-      service:
-        type: ClusterIP
-        port: 8003
-      resources:
-        requests:
-          memory: "128Mi"
-          cpu: "100m"
-        limits:
-          memory: "256Mi"
-          cpu: "200m"
-
-  - name: log-processor
-    enabled: true
-    syncWave: 2
-    values:
-      replicaCount: 2
-      service:
-        type: ClusterIP
-        port: 8004
-      resources:
-        requests:
-          memory: "512Mi"
-          cpu: "300m"
-        limits:
-          memory: "1Gi"
-          cpu: "500m"
-
-  - name: query-service
-    enabled: true
-    syncWave: 2
-    values:
-      replicaCount: 2
-      service:
-        type: ClusterIP
-        port: 8005
-      resources:
-        requests:
-          memory: "256Mi"
-          cpu: "200m"
-        limits:
-          memory: "512Mi"
-          cpu: "400m"
-
-  - name: analytics-service
-    enabled: true
-    syncWave: 2
-    values:
-      replicaCount: 1
-      service:
-        type: ClusterIP
-        port: 8006
-      resources:
-        requests:
-          memory: "256Mi"
-          cpu: "200m"
-        limits:
-          memory: "512Mi"
-          cpu: "400m"
-
-# UI Configuration
-ui:
-  enabled: true
-  values:
-    replicaCount: 2
-    service:
-      type: ClusterIP
-      port: 3000
-    ingress:
-      enabled: true
-      className: nginx
-      hosts:
-        - host: kubin.local
-          paths:
-            - path: /
-              pathType: Prefix
-    resources:
-      requests:
-        memory: "256Mi"
-        cpu: "200m"
-      limits:
-        memory: "512Mi"
-        cpu: "400m"
-
-# Infrastructure Dependencies (for development)
-postgresql:
-  enabled: true
-  global:
-    postgresql:
-      auth:
-        postgresPassword: kubin_dev
-        username: kubin
-        password: kubin_dev
-        database: kubin
-  primary:
-    persistence:
-      enabled: true
-      size: 8Gi
-
-redis:
-  enabled: true
-  auth:
-    enabled: false
-  master:
-    persistence:
-      enabled: true
-      size: 4Gi
-
-clickhouse:
-  enabled: true
-  auth:
-    username: kubin
-    password: kubin_dev
-  defaultDatabase: kubin_logs
-  persistence:
-    enabled: true
-    size: 20Gi
-
-kafka:
-  enabled: true
+  # Deployment configuration
   replicaCount: 1
-  zookeeper:
-    enabled: true
-  persistence:
-    enabled: true
-    size: 10Gi
 
-minio:
-  enabled: true
-  auth:
-    rootUser: kubin
-    rootPassword: kubin_dev_password
-  defaultBuckets: "kubin-snapshots"
-  persistence:
-    enabled: true
-    size: 50Gi
+  # Resource configuration
 
-# Monitoring (optional)
-monitoring:
-  prometheus:
-    enabled: false
-  grafana:
-    enabled: false
-  jaeger:
-    enabled: false
+  # Environment variables
+  env:
+    SERVER_PORT: "8000"
+
+  # Ingress configuration
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      nginx.ingress.kubernetes.io/rate-limit: "100"
+    hosts:
+      - host: api.kubin.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: kubin-api-tls
+        hosts:
+          - api.kubin.example.com
+
+# =============================================================================
+# INFRASTRUCTURE DEPENDENCIES
+# =============================================================================
+
+# PostgreSQL - Main database for metadata
+postgresql:
+  enabled: false
+
+# Redis - Caching layer
+redis:
+  enabled: false
+
+# =============================================================================
+# FUTURE SERVICES (disabled for now)
+# =============================================================================
+
+# Upload Orchestrator - Handles snapshot uploads
+upload-orchestrator:
+  enabled: false
+
+# Metadata Service - Manages snapshot metadata
+metadata-service:
+  enabled: false
+
+# Storage Service - Manages S3/file operations
+storage-service:
+  enabled: false
+
+# Log Processor - Processes and indexes logs
+log-processor:
+  enabled: false
+
+# Query Service - Orchestrates data queries
+query-service:
+  enabled: false
+
+# Analytics Service - ClickHouse analytics
+analytics-service:
+  enabled: false
+
+# UI - React web interface
+ui:
+  enabled: false

@@ -1,0 +1,81 @@
+# API Gateway default values
+# These can be overridden by the parent chart
+
+# Image configuration
+image:
+  repository: kubin-api-gateway
+  tag: "dev"
+  pullPolicy: IfNotPresent
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 8000
+  targetPort: 8000
+
+# Deployment configuration
+replicaCount: 1
+
+# Container resources
+resources:
+  requests:
+    memory: "64Mi"
+    cpu: "50m"
+  limits:
+    memory: "128Mi"
+    cpu: "100m"
+
+# Environment variables
+env:
+  SERVER_PORT: "8000"
+  SERVER_ENV: "development"
+  LOG_LEVEL: "info"
+
+# Health check configuration
+healthCheck:
+  enabled: true
+  initialDelaySeconds: 10
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Readiness probe configuration
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Security context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: api-gateway.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# Labels
+labels:
+  app: api-gateway
+  component: kubin
+
+# Node selector (optional)
+nodeSelector: {}
+
+# Tolerations (optional)
+tolerations: []
+
+# Affinity (optional)
+affinity: {}

@@ -1,0 +1,15 @@
+apiVersion: v2
+name: api-gateway
+description: Kubin - API Gateway
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+keywords:
+  - kubin
+  - api-gateway
+  - kubernetes
+
+maintainers:
+  - name: 3nd3r1
+    email: ender.spam.guru@gmail.com

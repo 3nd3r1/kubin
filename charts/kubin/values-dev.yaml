@@ -1,0 +1,22 @@
+# Development overrides for Kubin
+
+global:
+  environment: development
+  imageTag: "dev"
+  domain: kubin.local
+
+argocd:
+  enabled: false
+
+# API Gateway - Development settings
+api-gateway:
+  replicaCount: 1
+
+  env:
+    LOG_LEVEL: "debug"
+
+  ingress:
+    enabled: false # Use port-forward in development
+
+  service:
+    type: ClusterIP
