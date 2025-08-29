@@ -30,8 +30,14 @@ func main() {
 	// Create and start server
 	srv := server.New(r)
 
-	log.Info("Server initialized, starting...")
-	if err := srv.Start(ctx); err != nil {
-		log.WithError(err).Fatal("Server failed")
-	}
+	go func() {
+		if err := srv.Start(ctx); err != nil {
+			log.WithError(err).Fatal("Server failed")
+		}	
+	}()
+
+	<-ctx.Done()
+	log.Info("Shutting down API Gateway...")
+
+	log.Info("API Gateway stopped")
 }
