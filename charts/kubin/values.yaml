@@ -1,0 +1,237 @@
+global:
+  environment: development
+  imageTag: dev
+  registry: localhost:5001
+  pullPolicy: Always
+
+  # Common labels applied to all resources
+  labels:
+    app.kubernetes.io/name: kubin
+    app.kubernetes.io/part-of: kubin-platform
+
+  # Security context
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    fsGroup: 1001
+
+# ArgoCD App of Apps Configuration
+argocd:
+  enabled: true
+  namespace: argocd
+  repoURL: https://github.com/3nd3r1/kubin.git
+  targetRevision: main
+  path: .
+  destinationServer: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+# Services Configuration
+services:
+  - name: api-gateway
+    enabled: true
+    syncWave: 0
+    values:
+      replicaCount: 1
+      service:
+        type: ClusterIP
+        port: 8000
+      ingress:
+        enabled: true
+        className: nginx
+        hosts:
+          - host: api.kubin.local
+            paths:
+              - path: /
+                pathType: Prefix
+      resources:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "256Mi"
+          cpu: "200m"
+
+  - name: upload-orchestrator
+    enabled: true
+    syncWave: 1
+    values:
+      replicaCount: 2
+      service:
+        type: ClusterIP
+        port: 8001
+      resources:
+        requests:
+          memory: "256Mi"
+          cpu: "200m"
+        limits:
+          memory: "512Mi"
+          cpu: "500m"
+
+  - name: metadata-service
+    enabled: true
+    syncWave: 1
+    values:
+      replicaCount: 1
+      service:
+        type: ClusterIP
+        port: 8002
+      resources:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "256Mi"
+          cpu: "200m"
+
+  - name: storage-service
+    enabled: true
+    syncWave: 1
+    values:
+      replicaCount: 1
+      service:
+        type: ClusterIP
+        port: 8003
+      resources:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "256Mi"
+          cpu: "200m"
+
+  - name: log-processor
+    enabled: true
+    syncWave: 2
+    values:
+      replicaCount: 2
+      service:
+        type: ClusterIP
+        port: 8004
+      resources:
+        requests:
+          memory: "512Mi"
+          cpu: "300m"
+        limits:
+          memory: "1Gi"
+          cpu: "500m"
+
+  - name: query-service
+    enabled: true
+    syncWave: 2
+    values:
+      replicaCount: 2
+      service:
+        type: ClusterIP
+        port: 8005
+      resources:
+        requests:
+          memory: "256Mi"
+          cpu: "200m"
+        limits:
+          memory: "512Mi"
+          cpu: "400m"
+
+  - name: analytics-service
+    enabled: true
+    syncWave: 2
+    values:
+      replicaCount: 1
+      service:
+        type: ClusterIP
+        port: 8006
+      resources:
+        requests:
+          memory: "256Mi"
+          cpu: "200m"
+        limits:
+          memory: "512Mi"
+          cpu: "400m"
+
+# UI Configuration
+ui:
+  enabled: true
+  values:
+    replicaCount: 2
+    service:
+      type: ClusterIP
+      port: 3000
+    ingress:
+      enabled: true
+      className: nginx
+      hosts:
+        - host: kubin.local
+          paths:
+            - path: /
+              pathType: Prefix
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "200m"
+      limits:
+        memory: "512Mi"
+        cpu: "400m"
+
+# Infrastructure Dependencies (for development)
+postgresql:
+  enabled: true
+  global:
+    postgresql:
+      auth:
+        postgresPassword: kubin_dev
+        username: kubin
+        password: kubin_dev
+        database: kubin
+  primary:
+    persistence:
+      enabled: true
+      size: 8Gi
+
+redis:
+  enabled: true
+  auth:
+    enabled: false
+  master:
+    persistence:
+      enabled: true
+      size: 4Gi
+
+clickhouse:
+  enabled: true
+  auth:
+    username: kubin
+    password: kubin_dev
+  defaultDatabase: kubin_logs
+  persistence:
+    enabled: true
+    size: 20Gi
+
+kafka:
+  enabled: true
+  replicaCount: 1
+  zookeeper:
+    enabled: true
+  persistence:
+    enabled: true
+    size: 10Gi
+
+minio:
+  enabled: true
+  auth:
+    rootUser: kubin
+    rootPassword: kubin_dev_password
+  defaultBuckets: "kubin-snapshots"
+  persistence:
+    enabled: true
+    size: 50Gi
+
+# Monitoring (optional)
+monitoring:
+  prometheus:
+    enabled: false
+  grafana:
+    enabled: false
+  jaeger:
+    enabled: false

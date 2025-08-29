@@ -1,0 +1,47 @@
+apiVersion: v2
+name: kubin
+description: Kubin - Pastebin for Kubernetes clusters
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+
+keywords:
+  - kubernetes
+  - pastebin
+  - microservices
+  - gitops
+
+home: https://github.com/3nd3r1/kubin
+sources:
+  - https://github.com/3nd3r1/kubin
+
+maintainers:
+  - name: 3nd3r1
+    email: ender.spam.guru@gmail.com
+
+dependencies:
+  # Infrastructure dependencies
+  - name: postgresql
+    version: "12.12.10"
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+
+  - name: redis
+    version: "18.1.5"
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled
+
+  - name: clickhouse
+    version: "4.1.17"
+    repository: https://charts.bitnami.com/bitnami
+    condition: clickhouse.enabled
+
+  - name: kafka
+    version: "25.3.5"
+    repository: https://charts.bitnami.com/bitnami
+    condition: kafka.enabled
+
+  - name: minio
+    version: "12.8.22"
+    repository: https://charts.bitnami.com/bitnami
+    condition: minio.enabled

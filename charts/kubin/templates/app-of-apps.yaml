@@ -1,0 +1,149 @@
+{{- if .Values.argocd.enabled }}
+---
+# Root Application - App of Apps Pattern
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kubin-{{ .Values.global.environment }}
+  namespace: {{ .Values.argocd.namespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: kubin-{{ .Values.global.environment }}
+  source:
+    repoURL: {{ .Values.argocd.repoURL }}
+    targetRevision: {{ .Values.argocd.targetRevision }}
+    path: {{ .Values.argocd.path }}
+    helm:
+      valueFiles:
+        - values-{{ .Values.global.environment }}.yaml
+  destination:
+    server: {{ .Values.argocd.destinationServer }}
+    namespace: {{ .Release.Namespace }}
+  syncPolicy:
+    automated:
+      prune: {{ .Values.argocd.syncPolicy.automated.prune }}
+      selfHeal: {{ .Values.argocd.syncPolicy.automated.selfHeal }}
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+---
+# ArgoCD Project
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: kubin-{{ .Values.global.environment }}
+  namespace: {{ .Values.argocd.namespace }}
+spec:
+  description: "Kubin {{ .Values.global.environment }} environment"
+  sourceRepos:
+    - {{ .Values.argocd.repoURL }}
+  destinations:
+    - namespace: {{ .Release.Namespace }}
+      server: {{ .Values.argocd.destinationServer }}
+    - namespace: kubin-*
+      server: {{ .Values.argocd.destinationServer }}
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+---
+{{- range $service := .Values.services }}
+{{- if $service.enabled }}
+# {{ $service.name | title }} Service Application
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kubin-{{ $service.name }}-{{ $.Values.global.environment }}
+  namespace: {{ $.Values.argocd.namespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ $service.syncWave | default 0 }}"
+spec:
+  project: kubin-{{ $.Values.global.environment }}
+  source:
+    repoURL: {{ $.Values.argocd.repoURL }}
+    targetRevision: {{ $.Values.argocd.targetRevision }}
+    path: services/{{ $service.name }}
+    helm:
+      valueFiles:
+        - ../../helm/kubin/values-{{ $.Values.global.environment }}.yaml
+      values: |
+        global:
+          environment: {{ $.Values.global.environment }}
+          imageTag: {{ $.Values.global.imageTag }}
+          registry: {{ $.Values.global.registry }}
+        {{ $service.name | camelcase }}:
+          {{- toYaml $service.values | nindent 10 }}
+  destination:
+    server: {{ $.Values.argocd.destinationServer }}
+    namespace: {{ $.Release.Namespace }}
+  syncPolicy:
+    automated:
+      prune: {{ $.Values.argocd.syncPolicy.automated.prune }}
+      selfHeal: {{ $.Values.argocd.syncPolicy.automated.selfHeal }}
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+---
+{{- end }}
+{{- end }}
+
+{{- if .Values.ui.enabled }}
+# UI Application
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kubin-ui-{{ .Values.global.environment }}
+  namespace: {{ .Values.argocd.namespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  project: kubin-{{ .Values.global.environment }}
+  source:
+    repoURL: {{ .Values.argocd.repoURL }}
+    targetRevision: {{ .Values.argocd.targetRevision }}
+    path: ui
+    helm:
+      valueFiles:
+        - ../helm/kubin/values-{{ .Values.global.environment }}.yaml
+      values: |
+        global:
+          environment: {{ .Values.global.environment }}
+          imageTag: {{ .Values.global.imageTag }}
+          registry: {{ .Values.global.registry }}
+        ui:
+          {{- toYaml .Values.ui.values | nindent 10 }}
+  destination:
+    server: {{ .Values.argocd.destinationServer }}
+    namespace: {{ .Release.Namespace }}
+  syncPolicy:
+    automated:
+      prune: {{ .Values.argocd.syncPolicy.automated.prune }}
+      selfHeal: {{ .Values.argocd.syncPolicy.automated.selfHeal }}
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+---
+{{- end }}
+{{- end }}
