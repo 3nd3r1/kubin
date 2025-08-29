@@ -1,15 +1,23 @@
-FROM golang:1.21-alpine AS builder
+FROM golang:1.22.3-alpine AS builder
 
 RUN apk add --no-cache git ca-certificates tzdata
 
 WORKDIR /app
 
-COPY ../go.mod ../go.sum ./
+COPY ./api-gateway/go.mod ./api-gateway/go.sum ./api-gateway/
+COPY ./shared/go.mod ./shared/go.sum ./shared/
+
+WORKDIR /app/api-gateway
 
 RUN go mod download
 
+WORKDIR /app
+
 # Copy source code
-COPY ../ .
+COPY ./api-gateway/ ./api-gateway/
+COPY ./shared/ ./shared/
+
+WORKDIR /app/api-gateway
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags='-w -s -extldflags "-static"' \
@@ -29,7 +37,7 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /etc/passwd /etc/passwd
 
 # Copy the binary
-COPY --from=builder /app/api-gateway /api-gateway
+COPY --from=builder /app/api-gateway/api-gateway /api-gateway
 
 # Metadata labels following OCI standards
 LABEL org.opencontainers.image.title="Kubin API Gateway"
