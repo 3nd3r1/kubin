@@ -6,7 +6,7 @@ Kubin uses a microservices architecture optimized for high-throughput uploads an
 
 ### Diagram
 
-![Architecture](../assets/kubin_architecture.png)
+![Architecture](./assets/kubin_architecture.png)
 
 ## Core Services
 
