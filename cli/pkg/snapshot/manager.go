@@ -71,8 +71,3 @@ func (m *Manager) Create(ctx context.Context, out io.Writer) (_ Manifest, err er
 	}
 	return manifest, nil
 }
-
-// DefaultFileName is the file name kubin create writes to by default.
-func DefaultFileName(t time.Time) string {
-	return fmt.Sprintf("kubin-snapshot-%s.tar.gz", t.UTC().Format("20060102-150405"))
-}

@@ -6,9 +6,10 @@ All tools come from `nix-shell` (or `direnv allow` once). That includes the pinn
 
 ```bash
 cd cli && make test                   # unit tests
-cd cli && go run . create             # writes kubin-snapshot-*.tar.gz from the current kube context
 cd server && make test                # unit tests
-cd server && make run                 # server on :8080, only /healthz and /readyz so far
+cd server && make run                 # server on :8080, data in server/data/
+cd cli && go run . create --server http://localhost:8080   # snapshot the current kube context, print the link
+cd cli && go run . create -o cluster.tar.gz                # or keep the tarball instead
 cd ui && npm install && npm run dev   # placeholder page on :3000
 ```
 

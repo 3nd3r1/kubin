@@ -97,8 +97,3 @@ func TestCreateWritesV1Layout(t *testing.T) {
 	assert.Equal(t, "prod", meta["namespace"])
 	assert.NotContains(t, meta, "managedFields")
 }
-
-func TestDefaultFileName(t *testing.T) {
-	got := DefaultFileName(time.Date(2026, 11, 17, 10, 4, 5, 0, time.FixedZone("EET", 7200)))
-	assert.Equal(t, "kubin-snapshot-20261117-080405.tar.gz", got)
-}

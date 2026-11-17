@@ -4,6 +4,7 @@ title: Demo the crashing-pod story and rewrite the README around it
 status: To Do
 assignee: []
 created_date: '2026-11-17T14:08:00Z'
+updated_date: '2026-11-17T14:23:00Z'
 labels:
   - docs
 milestone: m-0
@@ -29,3 +30,9 @@ The README describes kubin but does not show why anyone would use it (user, 2026
 - [ ] #3 The README opens with one sentence, the recording, and the three commands to reproduce it, above everything else
 - [ ] #4 The README says what works today and what does not, with no claims beyond what the demo shows
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+From TASK-5: CLI progress on stderr is zap JSON lines. For the recording it should be short human-readable lines (or nothing but the link).
+<!-- SECTION:NOTES:END -->
