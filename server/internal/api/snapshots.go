@@ -39,8 +39,7 @@ func (h *handlers) createSnapshot(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid snapshot: "+inv.Error())
 		return
 	case err != nil:
-		h.opts.Log.Error("upload failed", "err", err)
-		writeError(w, http.StatusInternalServerError, "upload failed")
+		h.serverError(w, "upload", err)
 		return
 	}
 

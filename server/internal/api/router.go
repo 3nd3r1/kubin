@@ -18,6 +18,7 @@ type Options struct {
 	SecureHeaders bool
 
 	Snapshots Uploader
+	Store     Reader
 	// Ready reports whether the database can be used. Nil means always ready.
 	Ready func(context.Context) error
 	// PublicURL is the base for snapshot links. Empty means taken from the
@@ -44,6 +45,9 @@ func NewRouter(opts Options) http.Handler {
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Post("/snapshots", h.createSnapshot)
+		r.Get("/snapshots/{id}", h.getSnapshot)
+		r.Get("/snapshots/{id}/resources", h.listResources)
+		r.Get("/snapshots/{id}/resources/{kind}/{ns}/{name}", h.getResource)
 	})
 
 	return r

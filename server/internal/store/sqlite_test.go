@@ -2,7 +2,10 @@ package store
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -107,5 +110,91 @@ func TestDuplicateResourceFails(t *testing.T) {
 	}
 	if err := tx.AddResource(ctx, r); err == nil {
 		t.Fatal("second insert of the same resource returned nil")
+	}
+}
+
+func TestReads(t *testing.T) {
+	ctx := context.Background()
+	s, _ := openTest(t)
+	snap := testSnapshot("snap")
+	tx, err := s.BeginSnapshot(ctx, snap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range []Resource{
+		{Group: "core", Version: "v1", Kind: "Namespace", Name: "default", Object: []byte(`{"n":1}`)},
+		{Group: "core", Version: "v1", Kind: "Event", Namespace: "default", Name: "e1", Object: []byte(`{"core":true}`)},
+		{Group: "events.k8s.io", Version: "v1", Kind: "Event", Namespace: "default", Name: "e1", Object: []byte(`{"core":false}`)},
+		{Group: "core", Version: "v1", Kind: "Pod", Namespace: "default", Name: "b", Object: []byte(`{}`)},
+		{Group: "core", Version: "v1", Kind: "Pod", Namespace: "default", Name: "a", Object: []byte(`{}`)},
+		{Group: "core", Version: "v1", Kind: "Pod", Namespace: "other", Name: "c", Object: []byte(`{}`)},
+	} {
+		if err := tx.AddResource(ctx, r); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := s.GetSnapshot(ctx, "snap")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got.Manifest) != string(snap.Manifest) || !got.UploadedAt.Equal(snap.UploadedAt) || got.BlobKey != snap.BlobKey {
+		t.Errorf("GetSnapshot = %+v, want %+v", got, snap)
+	}
+	if _, err := s.GetSnapshot(ctx, "missing"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("GetSnapshot(missing) = %v, want ErrNotFound", err)
+	}
+
+	counts, err := s.CountResources(ctx, "snap")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []KindCount{
+		{"core", "v1", "Event", 1}, {"core", "v1", "Namespace", 1}, {"core", "v1", "Pod", 3},
+		{"events.k8s.io", "v1", "Event", 1},
+	}
+	if fmt.Sprint(counts) != fmt.Sprint(want) {
+		t.Errorf("CountResources = %v, want %v", counts, want)
+	}
+
+	names := func(f Filter) string {
+		rs, err := s.ListResources(ctx, "snap", f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out []string
+		for _, r := range rs {
+			out = append(out, r.Kind+":"+r.Namespace+"/"+r.Name)
+		}
+		return strings.Join(out, " ")
+	}
+	for _, tt := range []struct {
+		f    Filter
+		want string
+	}{
+		{Filter{Kind: "Pod"}, "Pod:default/a Pod:default/b Pod:other/c"},
+		{Filter{Kind: "Pod", Namespace: "other"}, "Pod:other/c"},
+		{Filter{ClusterScoped: true}, "Namespace:/default"},
+		{Filter{Group: "events.k8s.io"}, "Event:default/e1"},
+		{Filter{Kind: "Nope"}, ""},
+	} {
+		if got := names(tt.f); got != tt.want {
+			t.Errorf("ListResources(%+v) = %q, want %q", tt.f, got, tt.want)
+		}
+	}
+
+	r, err := s.GetResource(ctx, "snap", Key{Kind: "Event", Namespace: "default", Name: "e1"})
+	if err != nil || string(r.Object) != `{"core":true}` {
+		t.Errorf("GetResource without group = %s, %v; want the core Event", r.Object, err)
+	}
+	r, err = s.GetResource(ctx, "snap", Key{Group: "events.k8s.io", Kind: "Event", Namespace: "default", Name: "e1"})
+	if err != nil || string(r.Object) != `{"core":false}` {
+		t.Errorf("GetResource with group = %s, %v; want the events.k8s.io Event", r.Object, err)
+	}
+	if _, err := s.GetResource(ctx, "snap", Key{Kind: "Pod", Namespace: "default", Name: "zz"}); !errors.Is(err, ErrNotFound) {
+		t.Errorf("GetResource(missing) = %v, want ErrNotFound", err)
 	}
 }
