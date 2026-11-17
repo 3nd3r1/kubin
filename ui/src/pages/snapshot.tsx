@@ -1,40 +1,20 @@
-import { useEffect, useState } from "react";
+import { Link, Outlet, useParams } from "react-router";
 
-import { useParams } from "react-router";
+import { getSnapshot } from "@/lib/api";
+import { useFetch } from "@/lib/use-fetch";
 
-import { NotFoundError, type Snapshot, getSnapshot } from "@/lib/api";
-
-import { Badge } from "@/components/ui/badge";
+import { LoadError, Loading } from "@/components/common/states";
 
 import { NotFoundPage } from "./not-found";
 
-type State =
-    | { status: "loading" }
-    | { status: "ok"; snapshot: Snapshot }
-    | { status: "missing" }
-    | { status: "error"; message: string };
-
-// A first view of a snapshot. TASK-6 turns this into the real page.
-export function SnapshotPage() {
+/** Loads the snapshot once for every page under /s/:id. */
+export function SnapshotLayout() {
     const { id = "" } = useParams();
-    const [state, setState] = useState<State>({ status: "loading" });
-
-    useEffect(() => {
-        const ctrl = new AbortController();
-        getSnapshot(id, ctrl.signal)
-            .then((snapshot) => setState({ status: "ok", snapshot }))
-            .catch((err: unknown) => {
-                if (ctrl.signal.aborted) return;
-                if (err instanceof NotFoundError)
-                    setState({ status: "missing" });
-                else setState({ status: "error", message: String(err) });
-            });
-        return () => ctrl.abort();
-    }, [id]);
+    const state = useFetch((signal) => getSnapshot(id, signal), [id]);
 
     switch (state.status) {
         case "loading":
-            return <p className="text-muted-foreground">Loading snapshot…</p>;
+            return <Loading what="snapshot" />;
         case "missing":
             return (
                 <NotFoundPage
@@ -43,31 +23,27 @@ export function SnapshotPage() {
                 />
             );
         case "error":
-            return <p className="text-destructive">{state.message}</p>;
+            return <LoadError message={state.message} />;
     }
 
-    const { manifest, counts } = state.snapshot;
+    const snapshot = state.data;
+    const { cluster, created_at } = snapshot.manifest;
     return (
-        <div className="space-y-4">
+        <div className="space-y-6">
             <div>
                 <h1 className="text-2xl font-semibold">
-                    {manifest.cluster.name}
+                    <Link to={`/s/${snapshot.id}`} className="hover:underline">
+                        {cluster.name || cluster.context || "Cluster"}
+                    </Link>
                 </h1>
                 <p className="text-muted-foreground text-sm">
-                    Kubernetes {manifest.cluster.server_version}, captured{" "}
-                    {new Date(manifest.created_at).toLocaleString()}
+                    Kubernetes {cluster.server_version}, captured{" "}
+                    <time dateTime={created_at} title={created_at}>
+                        {new Date(created_at).toLocaleString()}
+                    </time>
                 </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-                {counts.map((c) => (
-                    <Badge
-                        key={`${c.group}/${c.version}/${c.kind}`}
-                        variant="secondary"
-                    >
-                        {c.kind} {c.count}
-                    </Badge>
-                ))}
-            </div>
+            <Outlet context={snapshot} />
         </div>
     );
 }

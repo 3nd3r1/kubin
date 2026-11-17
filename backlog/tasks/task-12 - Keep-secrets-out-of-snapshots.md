@@ -4,7 +4,7 @@ title: Keep secrets out of snapshots
 status: To Do
 assignee: []
 created_date: '2026-11-17T10:05:00Z'
-updated_date: '2026-11-17T14:08:00Z'
+updated_date: '2026-11-17T14:52:00Z'
 labels:
   - cli
 milestone: m-0
@@ -27,3 +27,9 @@ A snapshot is a public link to a cluster dump, so a leaked credential is the wor
 - [ ] #3 The manifest records which redaction rules ran
 - [ ] #4 Tests show a Secret value and a matching env value never reach the tarball
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Found while building TASK-6: objects applied with kubectl apply carry the kubectl.kubernetes.io/last-applied-configuration annotation, which for a Secret holds the full data in plain JSON. Removing data and stringData is not enough; redaction must also drop or scrub that annotation (on Secrets at least, and it can echo env values on any kind).
+<!-- SECTION:NOTES:END -->

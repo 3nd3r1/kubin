@@ -42,3 +42,44 @@ export function getSnapshot(id: string, signal?: AbortSignal) {
         signal
     );
 }
+
+export type ResourceItem<T = unknown> = {
+    group: string;
+    version: string;
+    kind: string;
+    namespace: string;
+    name: string;
+    object: T;
+};
+
+const snapshotPath = (id: string) =>
+    `/api/v1/snapshots/${encodeURIComponent(id)}`;
+
+export async function listResources<T>(
+    id: string,
+    filter: { kind?: string; namespace?: string },
+    signal?: AbortSignal
+): Promise<ResourceItem<T>[]> {
+    const q = new URLSearchParams();
+    if (filter.kind) q.set("kind", filter.kind);
+    if (filter.namespace) q.set("namespace", filter.namespace);
+    const res = await getJSON<{ items: ResourceItem<T>[] }>(
+        `${snapshotPath(id)}/resources?${q}`,
+        signal
+    );
+    return res.items;
+}
+
+export function getResource<T>(
+    id: string,
+    kind: string,
+    namespace: string,
+    name: string,
+    signal?: AbortSignal
+): Promise<T> {
+    const parts = [kind, namespace || "_cluster", name].map(encodeURIComponent);
+    return getJSON<T>(
+        `${snapshotPath(id)}/resources/${parts.join("/")}`,
+        signal
+    );
+}

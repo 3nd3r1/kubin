@@ -1,6 +1,6 @@
 # Kubin UI Makefile
 
-.PHONY: help install dev build lint typecheck format
+.PHONY: help install dev build lint typecheck format test
 
 help: ## Show this help message
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -22,3 +22,6 @@ typecheck: ## tsc
 
 format: ## prettier --write
 	npm run format
+
+test: ## Unit tests (vitest)
+	npm test

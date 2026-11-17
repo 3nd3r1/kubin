@@ -12,14 +12,24 @@ import "./index.css";
 
 import { HomePage } from "@/pages/home";
 import { NotFoundPage } from "@/pages/not-found";
-import { SnapshotPage } from "@/pages/snapshot";
+import { PodPage } from "@/pages/pod";
+import { PodsPage } from "@/pages/pods";
+import { SnapshotLayout } from "@/pages/snapshot";
 
 const router = createBrowserRouter([
     {
         element: <Layout />,
         children: [
             { path: "/", element: <HomePage /> },
-            { path: "/s/:id", element: <SnapshotPage /> },
+            {
+                path: "/s/:id",
+                element: <SnapshotLayout />,
+                children: [
+                    { index: true, element: <PodsPage /> },
+                    { path: "pods/:ns/:name", element: <PodPage /> },
+                    { path: "*", element: <NotFoundPage /> },
+                ],
+            },
             { path: "*", element: <NotFoundPage /> },
         ],
     },
