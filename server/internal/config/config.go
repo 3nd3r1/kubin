@@ -15,6 +15,12 @@ type Config struct {
 	IdleTimeout  time.Duration `envconfig:"SERVER_IDLE_TIMEOUT" default:"60s"`
 	Env          string        `envconfig:"SERVER_ENV" default:"development"`
 	LogLevel     string        `envconfig:"LOG_LEVEL" default:"info"`
+	// DataDir holds the SQLite database and the blob directory.
+	DataDir string `envconfig:"SERVER_DATA_DIR" default:"data"`
+	// PublicURL is the base for links handed back to the CLI, like
+	// https://kubin.example.com. Empty means taken from the request.
+	PublicURL      string `envconfig:"SERVER_PUBLIC_URL"`
+	MaxUploadBytes int64  `envconfig:"SERVER_MAX_UPLOAD_BYTES" default:"67108864"`
 }
 
 func Load() (Config, error) {

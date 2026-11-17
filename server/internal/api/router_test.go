@@ -25,7 +25,7 @@ func TestHealthRoutes(t *testing.T) {
 
 func TestUnknownRouteIs404(t *testing.T) {
 	rec := httptest.NewRecorder()
-	newTestRouter(false).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/snapshots", nil))
+	newTestRouter(false).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/nope", nil))
 	if rec.Code != http.StatusNotFound {
 		t.Errorf("got %d, want 404", rec.Code)
 	}

@@ -8,12 +8,16 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
 	"github.com/3nd3r1/kubin/server/internal/api"
+	"github.com/3nd3r1/kubin/server/internal/blob"
 	"github.com/3nd3r1/kubin/server/internal/config"
 	"github.com/3nd3r1/kubin/server/internal/server"
+	"github.com/3nd3r1/kubin/server/internal/snapshot"
+	"github.com/3nd3r1/kubin/server/internal/store"
 )
 
 func main() {
@@ -33,8 +37,29 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	tmpDir := filepath.Join(cfg.DataDir, "tmp")
+	if err := os.MkdirAll(tmpDir, 0o750); err != nil {
+		return err
+	}
+	db, err := store.OpenSQLite(ctx, filepath.Join(cfg.DataDir, "kubin.db"))
+	if err != nil {
+		return err
+	}
+	defer func() { _ = db.Close() }()
+	blobs, err := blob.NewFS(filepath.Join(cfg.DataDir, "blobs"))
+	if err != nil {
+		return err
+	}
+
 	srv := &http.Server{
-		Handler:           api.NewRouter(api.Options{Log: log, SecureHeaders: cfg.Production()}),
+		Handler: api.NewRouter(api.Options{
+			Log:            log,
+			SecureHeaders:  cfg.Production(),
+			Snapshots:      &snapshot.Service{Store: db, Blobs: blobs, TempDir: tmpDir},
+			Ready:          db.Ping,
+			PublicURL:      cfg.PublicURL,
+			MaxUploadBytes: cfg.MaxUploadBytes,
+		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       cfg.ReadTimeout,
 		WriteTimeout:      cfg.WriteTimeout,
@@ -45,7 +70,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	log.Info("listening", "addr", ln.Addr().String(), "env", cfg.Env)
+	log.Info("listening", "addr", ln.Addr().String(), "env", cfg.Env, "data_dir", cfg.DataDir)
 
 	if err := server.Serve(ctx, srv, ln); err != nil {
 		return err

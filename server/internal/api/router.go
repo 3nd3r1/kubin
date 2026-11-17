@@ -2,8 +2,10 @@
 package api
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -14,9 +16,22 @@ type Options struct {
 	Log *slog.Logger
 	// SecureHeaders adds browser hardening headers to every response.
 	SecureHeaders bool
+
+	Snapshots Uploader
+	// Ready reports whether the database can be used. Nil means always ready.
+	Ready func(context.Context) error
+	// PublicURL is the base for snapshot links. Empty means taken from the
+	// request.
+	PublicURL      string
+	MaxUploadBytes int64
+}
+
+type handlers struct {
+	opts Options
 }
 
 func NewRouter(opts Options) http.Handler {
+	h := &handlers{opts: opts}
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
 	r.Use(requestLog(opts.Log))
@@ -25,11 +40,29 @@ func NewRouter(opts Options) http.Handler {
 	}
 
 	r.Get("/healthz", ok)
-	// TODO(TASK-3): check the database and blob store once they exist.
-	r.Get("/readyz", ok)
+	r.Get("/readyz", h.ready)
+
+	r.Route("/api/v1", func(r chi.Router) {
+		r.Post("/snapshots", h.createSnapshot)
+	})
 
 	return r
 }
+
+func (h *handlers) ready(w http.ResponseWriter, r *http.Request) {
+	if h.opts.Ready != nil {
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		if err := h.opts.Ready(ctx); err != nil {
+			h.opts.Log.Warn("not ready", "err", err)
+			http.Error(w, "not ready", http.StatusServiceUnavailable)
+			return
+		}
+	}
+	ok(w, r)
+}
+
+func itoa(n int64) string { return strconv.FormatInt(n, 10) }
 
 func ok(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
