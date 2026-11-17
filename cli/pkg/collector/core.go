@@ -1,4 +1,3 @@
-// Package collector contains all the logic for collecting data from the cluster
 package collector
 
 import (
@@ -6,8 +5,11 @@ import (
 	"fmt"
 
 	"github.com/3nd3r1/kubin/cli/pkg/kube"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// CoreCollector collects namespaces and pods.
 type CoreCollector struct {
 	client kube.Client
 }
@@ -20,71 +22,32 @@ func (c *CoreCollector) Name() string {
 	return "core"
 }
 
-func (c *CoreCollector) Collect(ctx context.Context) ([]ClusterResource, error) {
-	var resources []ClusterResource
-
-	namespaces, err := c.collectNamespaces(ctx)
-	if err != nil {
-		return nil, err
-	}
-	resources = append(resources, namespaces...)
-
-	pods, err := c.collectPods(ctx)
-	if err != nil {
-		return nil, err
-	}
-	resources = append(resources, pods...)
-
-	return resources, nil
-}
-
-func (c *CoreCollector) collectNamespaces(ctx context.Context) ([]ClusterResource, error) {
-	var resources []ClusterResource
-
+func (c *CoreCollector) Collect(ctx context.Context) ([]Resource, error) {
 	namespaces, err := c.client.GetNamespaces(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("list namespaces: %w", err)
 	}
-
-	for _, namespace := range namespaces {
-		resources = append(resources, ClusterResource{
-			Kind:     "namespace",
-			Name:     namespace.Name,
-			Data:     namespace,
-			Metadata: nil,
-		})
-	}
-
-	return resources, nil
-}
-
-func (c *CoreCollector) collectPods(ctx context.Context) ([]ClusterResource, error) {
-	var resources []ClusterResource
-
-	namespaces, err := c.client.GetNamespaces(ctx)
+	pods, err := c.client.GetPods(ctx, metav1.NamespaceAll)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get namespaces for pod collection: %w", err)
+		return nil, fmt.Errorf("list pods: %w", err)
 	}
 
-	for _, namespace := range namespaces {
-		pods, err := c.client.GetPods(ctx, namespace.Name)
+	resources := make([]Resource, 0, len(namespaces)+len(pods))
+	nsKind := corev1.SchemeGroupVersion.WithKind("Namespace")
+	for i := range namespaces {
+		r, err := fromTyped(nsKind, &namespaces[i])
 		if err != nil {
-			return nil, fmt.Errorf("failed to get pods from namespace %s: %w", namespace.Name, err)
+			return nil, err
 		}
-
-		for _, pod := range pods {
-			metadata := map[string]string{
-				"namespace": pod.Namespace,
-			}
-
-			resources = append(resources, ClusterResource{
-				Kind:     "pod",
-				Name:     pod.Name,
-				Data:     pod,
-				Metadata: metadata,
-			})
-		}
+		resources = append(resources, r)
 	}
-
+	podKind := corev1.SchemeGroupVersion.WithKind("Pod")
+	for i := range pods {
+		r, err := fromTyped(podKind, &pods[i])
+		if err != nil {
+			return nil, err
+		}
+		resources = append(resources, r)
+	}
 	return resources, nil
 }

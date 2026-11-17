@@ -20,7 +20,7 @@ type LogConfig struct {
 func init() {
 	once.Do(func() {
 		logConfig = &LogConfig{}
-		envconfig.Process("", logConfig)
+		_ = envconfig.Process("", logConfig) // on error the default level is used
 	})
 
 	var l *zap.Logger

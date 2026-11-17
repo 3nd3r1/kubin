@@ -30,16 +30,16 @@ A gzipped tar, and the contract between the CLI and the server. Its layout is ve
 
 ```
 manifest.json                                 format version, cluster info, CLI version, counts
-resources/<group>/<version>/<kind>/<namespace>/<name>.json
-resources/<group>/<version>/<kind>/_cluster/<name>.json     cluster-scoped kinds
+resources/<group>/<version>/<Kind>/<namespace>/<name>.json
+resources/<group>/<version>/<Kind>/_cluster/<name>.json     cluster-scoped kinds
 logs/<namespace>/<pod>/<container>.log
 ```
 
-The core group is written as `core`. The full spec will be `docs/snapshot-format.md` (TASK-2).
+The core group is written as `core`. The full spec is [snapshot-format.md](snapshot-format.md).
 
 ## CLI (`cli/`)
 
-Go, cobra, client-go. `kubin create` uploads to `--server` or `KUBIN_SERVER` and prints the URL. `--output <file>` keeps the tarball instead, for air-gapped use. Collectors implement `collector.Collector` and the persister writes what they return into the tarball layout.
+Go, cobra, client-go. `kubin create` uploads to `--server` or `KUBIN_SERVER` and prints the URL. `--output <file>` keeps the tarball instead, for air-gapped use. Collectors implement `collector.Collector` and return objects as `collector.Resource`. `snapshot.Writer` puts them into the tarball layout, and `snapshot.Manager` runs the collectors and writes the manifest.
 
 ## Server (`server/`)
 

@@ -1,54 +1,78 @@
-// Package snapshot manages the creation of snapshots
+// Package snapshot builds snapshots in the format in docs/snapshot-format.md.
 package snapshot
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"io"
+	"time"
 
 	"github.com/3nd3r1/kubin/cli/pkg/collector"
 	"github.com/3nd3r1/kubin/cli/pkg/kube"
-	"github.com/3nd3r1/kubin/cli/pkg/persister"
 )
 
 type Manager struct {
+	client     kube.Client
 	collectors []collector.Collector
-	persister  persister.Persister
+	cliVersion string
+	now        func() time.Time
 }
 
-func NewManager() (*Manager, error) {
-	mgr := &Manager{}
-
-	kubeClient, err := kube.NewKubeClient()
-	if err != nil {
-		return nil, err
+func NewManager(client kube.Client, cliVersion string) *Manager {
+	return &Manager{
+		client:     client,
+		collectors: []collector.Collector{collector.NewCoreCollector(client)},
+		cliVersion: cliVersion,
+		now:        time.Now,
 	}
-
-	mgr.collectors = []collector.Collector{
-		collector.NewCoreCollector(kubeClient),
-	}
-
-	mgr.persister, err = persister.NewTarGzPersister()
-	if err != nil {
-		return nil, err
-	}
-
-	return mgr, nil
 }
 
-func (mgr *Manager) CreateSnapshot(ctx context.Context) error {
-	for _, c := range mgr.collectors {
+// Create collects the cluster and writes the snapshot to out.
+func (m *Manager) Create(ctx context.Context, out io.Writer) (_ Manifest, err error) {
+	createdAt := m.now().UTC().Truncate(time.Second)
+
+	info, err := m.client.ClusterInfo(ctx)
+	if err != nil {
+		return Manifest{}, err
+	}
+
+	w, err := NewWriter()
+	if err != nil {
+		return Manifest{}, err
+	}
+	defer func() { err = errors.Join(err, w.Cleanup()) }()
+
+	for _, c := range m.collectors {
 		resources, err := c.Collect(ctx)
 		if err != nil {
-			return err
+			return Manifest{}, fmt.Errorf("collector %s: %w", c.Name(), err)
 		}
-
-		for _, resource := range resources {
-			mgr.persister.Persist(resource)
+		for _, r := range resources {
+			if err := w.AddResource(r); err != nil {
+				return Manifest{}, err
+			}
 		}
 	}
 
-    if err := mgr.persister.Finalize(); err != nil {
-        return err
-    }
+	manifest := Manifest{
+		FormatVersion: FormatVersion,
+		CreatedAt:     createdAt,
+		CLIVersion:    m.cliVersion,
+		Cluster: Cluster{
+			Context:       info.Context,
+			Name:          info.Name,
+			ServerVersion: info.ServerVersion,
+		},
+		Resources: w.Counts(),
+	}
+	if err := w.Finish(manifest, out); err != nil {
+		return Manifest{}, err
+	}
+	return manifest, nil
+}
 
-    return nil
+// DefaultFileName is the file name kubin create writes to by default.
+func DefaultFileName(t time.Time) string {
+	return fmt.Sprintf("kubin-snapshot-%s.tar.gz", t.UTC().Format("20060102-150405"))
 }
