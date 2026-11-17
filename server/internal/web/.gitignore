@@ -1,0 +1,4 @@
+# Built by `make build` in ui/. Only the placeholder is committed, so
+# go:embed has something to match without node.
+dist/*
+!dist/.gitkeep

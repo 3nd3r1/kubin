@@ -1,6 +1,6 @@
 {
     "importOrder": [
-        "(^next/(.*)$)|(^next$)|(^react/(.*)$)|(^react$)",
+        "(^react/(.*)$)|(^react$)",
         "^(?!(@/|\\.))(.*)$",
         "^@/validators/(.*)$",
         "^@/lib/(.*)$",

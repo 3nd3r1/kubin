@@ -25,6 +25,9 @@ type Options struct {
 	// request.
 	PublicURL      string
 	MaxUploadBytes int64
+	// UI serves every path that isn't an API or health route. Nil means
+	// 404 for those paths.
+	UI http.Handler
 }
 
 type handlers struct {
@@ -44,13 +47,30 @@ func NewRouter(opts Options) http.Handler {
 	r.Get("/readyz", h.ready)
 
 	r.Route("/api/v1", func(r chi.Router) {
+		r.NotFound(apiNotFound)
+		r.MethodNotAllowed(apiMethodNotAllowed)
 		r.Post("/snapshots", h.createSnapshot)
 		r.Get("/snapshots/{id}", h.getSnapshot)
 		r.Get("/snapshots/{id}/resources", h.listResources)
 		r.Get("/snapshots/{id}/resources/{kind}/{ns}/{name}", h.getResource)
 	})
+	// Unknown API paths are JSON 404s, never the UI.
+	r.Handle("/api", http.HandlerFunc(apiNotFound))
+	r.Handle("/api/*", http.HandlerFunc(apiNotFound))
+
+	if opts.UI != nil {
+		r.Handle("/*", opts.UI)
+	}
 
 	return r
+}
+
+func apiNotFound(w http.ResponseWriter, _ *http.Request) {
+	writeError(w, http.StatusNotFound, "no such API endpoint")
+}
+
+func apiMethodNotAllowed(w http.ResponseWriter, _ *http.Request) {
+	writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 }
 
 func (h *handlers) ready(w http.ResponseWriter, r *http.Request) {

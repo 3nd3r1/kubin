@@ -1,33 +1,24 @@
 # Kubin UI Makefile
 
-.PHONY: help
-help: ## Show this help message
-	@echo "Kubin UI Commands:"
-	@echo ""
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+.PHONY: help install dev build lint typecheck format
 
-.PHONY: dev
-dev: ## Start development server
-	@echo "🎨 Starting UI development server..."
+help: ## Show this help message
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+install: ## Install dependencies
+	npm ci
+
+dev: ## Dev server on :5173, /api proxied to localhost:8080
 	npm run dev
 
-.PHONY: build
-build: ## Build for production
-	@echo "🔨 Building UI..."
+build: ## Build into server/internal/web/dist for go:embed
 	npm run build
 
-.PHONY: test
-test: ## Run tests
-	@echo "🧪 Running tests..."
-	npm test
+lint: ## eslint and prettier
+	npm run lint
 
-.PHONY: install
-install: ## Install dependencies
-	@echo "📦 Installing dependencies..."
-	npm install
+typecheck: ## tsc
+	npm run typecheck
 
-.PHONY: clean
-clean: ## Clean build artifacts
-	@echo "🧹 Cleaning..."
-	rm -rf .next
-	rm -rf dist 
+format: ## prettier --write
+	npm run format

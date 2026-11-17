@@ -1,0 +1,2 @@
+# The server owns dist/ (server/internal/web/dist).
+node_modules

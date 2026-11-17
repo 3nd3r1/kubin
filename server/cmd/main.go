@@ -18,6 +18,7 @@ import (
 	"github.com/3nd3r1/kubin/server/internal/server"
 	"github.com/3nd3r1/kubin/server/internal/snapshot"
 	"github.com/3nd3r1/kubin/server/internal/store"
+	"github.com/3nd3r1/kubin/server/internal/web"
 )
 
 func main() {
@@ -60,6 +61,7 @@ func run() error {
 			Ready:          db.Ping,
 			PublicURL:      cfg.PublicURL,
 			MaxUploadBytes: cfg.MaxUploadBytes,
+			UI:             web.Handler(web.Dist()),
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       cfg.ReadTimeout,

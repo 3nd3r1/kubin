@@ -23,11 +23,22 @@ func TestHealthRoutes(t *testing.T) {
 	}
 }
 
-func TestUnknownRouteIs404(t *testing.T) {
-	rec := httptest.NewRecorder()
-	newTestRouter(false).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/nope", nil))
-	if rec.Code != http.StatusNotFound {
-		t.Errorf("got %d, want 404", rec.Code)
+func TestUnknownAPIRouteIsJSON404(t *testing.T) {
+	ui := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ui")) })
+	r := NewRouter(Options{Log: slog.New(slog.NewTextHandler(io.Discard, nil)), UI: ui})
+	for _, path := range []string{"/api", "/api/v2/x", "/api/v1/nope", "/api/v1/snapshots/a/b/c/d/e/f/g"} {
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+		if rec.Code != http.StatusNotFound || rec.Header().Get("Content-Type") != "application/json" {
+			t.Errorf("%s: got %d %s, want a JSON 404", path, rec.Code, rec.Header().Get("Content-Type"))
+		}
+	}
+	for _, path := range []string{"/", "/s/abc", "/apiary"} {
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+		if rec.Body.String() != "ui" {
+			t.Errorf("%s: got %d %q, want the UI", path, rec.Code, rec.Body.String())
+		}
 	}
 }
 
