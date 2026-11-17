@@ -21,8 +21,11 @@ type Manager struct {
 
 func NewManager(client kube.Client, cliVersion string) *Manager {
 	return &Manager{
-		client:     client,
-		collectors: []collector.Collector{collector.NewCoreCollector(client)},
+		client: client,
+		collectors: []collector.Collector{
+			collector.NewCoreCollector(client),
+			collector.NewEventsCollector(client),
+		},
 		cliVersion: cliVersion,
 		now:        time.Now,
 	}

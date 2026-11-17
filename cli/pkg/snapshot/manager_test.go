@@ -53,6 +53,7 @@ func TestCreateWritesV1Layout(t *testing.T) {
 		// Same name in two namespaces: both must be kept.
 		&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "web", ManagedFields: managed}},
 		&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: "prod", Name: "web", ManagedFields: managed}},
+		&corev1.Event{ObjectMeta: metav1.ObjectMeta{Namespace: "prod", Name: "web.17f3a"}, Reason: "BackOff"},
 	)
 	cs.Discovery().(*fakediscovery.FakeDiscovery).FakedServerVersion = &version.Info{GitVersion: "v1.33.1"}
 
@@ -70,6 +71,7 @@ func TestCreateWritesV1Layout(t *testing.T) {
 	assert.True(t, sort.StringsAreSorted(names[1:]), "entries after the manifest are sorted: %v", names)
 	assert.Equal(t, []string{
 		"manifest.json",
+		"resources/core/v1/Event/prod/web.17f3a.json",
 		"resources/core/v1/Namespace/_cluster/default.json",
 		"resources/core/v1/Namespace/_cluster/prod.json",
 		"resources/core/v1/Pod/default/web.json",
@@ -84,6 +86,7 @@ func TestCreateWritesV1Layout(t *testing.T) {
 		CLIVersion:    "v0.0.0-test",
 		Cluster:       Cluster{Context: "kind-kubin", Name: "kind-kubin", ServerVersion: "v1.33.1"},
 		Resources: []KindCount{
+			{Group: "core", Version: "v1", Kind: "Event", Count: 1},
 			{Group: "core", Version: "v1", Kind: "Namespace", Count: 2},
 			{Group: "core", Version: "v1", Kind: "Pod", Count: 2},
 		},

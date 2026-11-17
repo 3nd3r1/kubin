@@ -17,6 +17,9 @@ type Client interface {
 	// GetPods lists pods in namespace, or in all namespaces when it is empty.
 	GetPods(ctx context.Context, namespace string) ([]corev1.Pod, error)
 	GetPodLogs(ctx context.Context, namespace string, podName string) (string, error)
+	// GetEvents lists core/v1 events in namespace, or in all namespaces when
+	// it is empty.
+	GetEvents(ctx context.Context, namespace string) ([]corev1.Event, error)
 }
 
 // ClusterInfo describes the cluster a snapshot was taken from.
@@ -83,6 +86,14 @@ func (k *KubeClient) GetNamespaces(ctx context.Context) ([]corev1.Namespace, err
 
 func (k *KubeClient) GetPods(ctx context.Context, namespace string) ([]corev1.Pod, error) {
 	list, err := k.clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
+func (k *KubeClient) GetEvents(ctx context.Context, namespace string) ([]corev1.Event, error) {
+	list, err := k.clientset.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}

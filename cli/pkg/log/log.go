@@ -54,6 +54,11 @@ func Info(msg string, fields ...any) {
 	logger.Infow(msg, fields...)
 }
 
+// Warn logs at Warn level
+func Warn(msg string, fields ...any) {
+	logger.Warnw(msg, fields...)
+}
+
 // Error logs at Error level
 func Error(msg string, fields ...any) {
 	logger.Errorw(msg, fields...)
