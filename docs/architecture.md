@@ -1,136 +1,75 @@
 # Architecture
 
-## System Design
+Kubin is three parts: a CLI that packs a cluster into one file, a server that stores it and answers queries about it, and a web UI that reads from the server. One server binary, one Postgres, one blob store.
 
-Kubin uses a microservices architecture optimized for high-throughput uploads and sub-second queries. The system separates upload and query paths to prevent interference and enable independent scaling.
+```
+kubin create ──upload .tar.gz──▶ server ──▶ blob store (disk, later S3)
+                                   │
+                                   └──────▶ Postgres (snapshots, resource index)
+browser ──▶ ui (Next.js) ──REST──▶ server
+```
 
-### Diagram
+The earlier design had seven services plus Kafka, ClickHouse and Redis. It was replaced before any of it was built. Why is in `backlog decision view decision-1`.
 
-![Architecture](./assets/kubin_architecture.png)
+## Snapshot
 
-## Core Services
+A snapshot is a gzipped tar. It is the contract between the CLI and the server, so its layout is versioned in `manifest.json`.
 
-### API Gateway
+```
+manifest.json                                 format version, cluster info, CLI version, counts
+resources/<group>/<version>/<kind>/<namespace>/<name>.json
+resources/<group>/<version>/<kind>/_cluster/<name>.json     cluster-scoped kinds
+logs/<namespace>/<pod>/<container>.log
+```
 
-- Single entry point with TLS, auth, rate limiting
-- Routes traffic to appropriate services
-- 100 concurrent uploads, 1000 queries/min limits
+The core group is written as `core`. The CLI strips `managedFields` and never writes Secret data. The full spec will live in `docs/snapshot-format.md` once TASK-2 lands.
 
-### Upload Orchestrator
+## CLI (`cli/`)
 
-- Coordinates multi-step upload workflow
-- Generates snapshot IDs and immediate shareable URLs
-- Manages S3 pre-signed URLs and async processing
-- States: `INITIATED` → `UPLOADING` → `PROCESSING` → `COMPLETED`
+Go, cobra, client-go. `kubin create` reads the current kubeconfig context, runs each collector, writes the tarball and uploads it. It prints the snapshot URL. `--output <file>` keeps the tarball instead of uploading, for air-gapped use.
 
-### Metadata Service
+Collectors implement `collector.Collector`. Each returns resources, the persister writes them into the tarball layout.
 
-- Fast PostgreSQL storage for K8s resource metadata
-- Optimized for listing, filtering, and search operations
-- Handles user management and sharing permissions
+## Server (`services/api-gateway/` today, moving to `server/` in TASK-1)
 
-### Storage Service
+One Go binary with chi. Everything the old design split into services is a package here:
 
-- Manages S3 file operations and organization
-- Generates pre-signed URLs for direct uploads/downloads
-- Implements lifecycle policies and multipart uploads
+| Package | Job |
+|---|---|
+| `api` | HTTP handlers, request validation |
+| `snapshot` | upload: validate the tarball, store it, index it |
+| `store` | Postgres: snapshots table and resource index |
+| `blob` | raw tarballs and logs. Filesystem first, S3 later |
 
-### Log Processor
+Upload is synchronous. A snapshot is a few MB, so validating and indexing it inside the request is fine. If it stops being fine, the indexing moves to a goroutine and the snapshot gets a status. It doesn't need a queue.
 
-- Background parsing of raw logs into structured data
-- Batch inserts to ClickHouse for analytics
-- Handles various log formats with parallel processing
+Postgres holds one row per snapshot and one row per resource (kind, namespace, name, the JSON). That is enough for listing, filtering and showing any resource. Logs stay as files in the blob store and are streamed to the UI. Log search starts as a scan of one log file. ClickHouse only comes back if that gets slow on real snapshots.
 
-### Query Service
+### API
 
-- Orchestrates data from multiple services
-- Parallel requests with intelligent caching (Redis)
-- Provides unified responses for web UI
+```
+POST /api/v1/snapshots                                 upload tarball, returns {id, url}
+GET  /api/v1/snapshots/{id}                            manifest and counts
+GET  /api/v1/snapshots/{id}/resources?kind=&namespace= list
+GET  /api/v1/snapshots/{id}/resources/{kind}/{ns}/{name}
+GET  /api/v1/snapshots/{id}/logs/{ns}/{pod}/{container}
+GET  /healthz, /readyz
+```
 
-### Analytics Service
+Snapshot IDs are random and unguessable, since the link is the only access control until there is auth.
 
-- Advanced log search and filtering on ClickHouse
-- Time-series analysis and aggregations
-- Materialized views for common queries
+## UI (`ui/`)
 
-## Data Storage
+Next.js, Tailwind, shadcn/ui. `/s/{id}` is a snapshot. Layout follows Lens: kinds in a sidebar, a table per kind, a detail panel with YAML, events and logs. Read-only.
 
-**PostgreSQL**: User data, snapshot metadata, K8s resources
+## Deploy (`charts/`, `skaffold.yaml`)
 
-- ACID transactions for immediate consistency
-- Optimized indexes for fast queries
-- Handles user auth and sharing permissions
+An umbrella Helm chart with a subchart per deployable (server, ui) and Bitnami Postgres as a dependency. `skaffold dev` against a local kind cluster is the dev loop. The ArgoCD app-of-apps template stays off until there is a hosted instance.
 
-**ClickHouse**: Log data and analytics
+## Security
 
-- Columnar storage for fast aggregations
-- Partitioned by snapshot_id and time
-- Materialized views for common patterns
+A cluster dump can leak credentials. The rules:
 
-**S3**: Raw files and YAML resources
-
-- Direct upload/download via pre-signed URLs
-- Organized hierarchy: `snapshots/{id}/{type}/...`
-- Lifecycle policies for cost optimization
-
-**Redis**: Multi-layer caching
-
-- Request cache (15min), component cache (5min)
-- Search cache (1hr), CDN cache (global)
-
-## Communication Patterns
-
-**Synchronous (HTTP/gRPC)**:
-
-- CLI ↔ Upload Orchestrator (immediate response)
-- Web UI ↔ Query Service (real-time interaction)
-- Inter-service calls for request fulfillment
-
-**Asynchronous (Kafka)**:
-
-- S3 upload completion events
-- Background processing coordination
-- Cross-service event propagation
-
-## Upload Flow
-
-### Phase 1: Immediate Response (< 2s)
-
-1. CLI sends cluster metadata to Upload Orchestrator
-2. Generate snapshot ID, create PostgreSQL record
-3. Request S3 pre-signed URLs from Storage Service
-4. Return shareable URL and upload URLs to CLI
-
-### Phase 2: Parallel Upload (5-120s)
-
-1. CLI uploads files directly to S3 using pre-signed URLs
-2. Multipart uploads for large files, progress reporting
-3. S3 events trigger Kafka notifications
-
-### Phase 3: Background Processing (30-300s)
-
-1. Log Processor parses and indexes logs
-2. Metadata status updates: `uploading` → `processing` → `completed`
-3. Query Service cache warming
-
-## Query Flow
-
-**List View**: Redis cache → PostgreSQL metadata query
-**Detail View**: Parallel calls to Metadata + Storage + Analytics services  
-**File Access**: Direct S3 downloads with pre-signed URLs
-**Log Search**: ClickHouse queries with partition pruning
-
-## Performance Optimizations
-
-- **Parallel Processing**: Worker pools, goroutines, async patterns
-- **Intelligent Caching**: Multi-layer Redis + CDN caching
-- **Direct S3 Access**: Bypass servers for file operations
-- **Database Optimization**: Partitioning, indexing, materialized views
-- **Connection Pooling**: HTTP/2, gRPC with connection reuse
-
-## Scaling Strategy
-
-**Horizontal Scaling**: All services are stateless and horizontally scalable
-**Database Scaling**: Read replicas for PostgreSQL, ClickHouse cluster sharding
-**Storage Scaling**: S3 auto-scales, Redis cluster for cache
-**Load Balancing**: API Gateway with health checks and circuit breakers
+- Secret objects are collected without `data` and `stringData`.
+- Env var values on pods can hold secrets. How to handle them is open (TASK-12).
+- Snapshot IDs are unguessable and snapshots expire.
