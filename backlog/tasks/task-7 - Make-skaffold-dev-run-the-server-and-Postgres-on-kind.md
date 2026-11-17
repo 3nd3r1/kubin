@@ -4,7 +4,7 @@ title: Make the Helm chart deploy kubin with Postgres and S3
 status: To Do
 assignee: []
 created_date: '2026-11-17T10:04:00Z'
-updated_date: '2026-11-17T10:11:00Z'
+updated_date: '2026-11-17T10:34:00Z'
 labels:
   - deploy
   - bug
@@ -32,3 +32,9 @@ The chart is the Kubernetes way to self-host and the base for a hosted instance.
 - [ ] #4 Values allow SQLite with a PVC for one replica, or external Postgres and S3 for several
 - [ ] #5 docs/self-hosting.md covers installing the chart
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+After TASK-1 the binary is /kubin-server (scratch image, port 8080, no healthcheck subcommand). The subchart is still named api-gateway and app-of-apps.yaml still points ArgoCD at services/<name>.
+<!-- SECTION:NOTES:END -->

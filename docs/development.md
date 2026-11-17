@@ -5,10 +5,11 @@ All tools come from `nix-shell` (or `direnv allow` once). That includes the pinn
 ## What works today
 
 ```bash
-cd cli && make test          # unit tests
-cd cli && go run . create   # writes kubin-snapshot-*.tar.gz from the current kube context
-cd services/api-gateway && go run ./cmd   # server on :8080, every route returns 501
-cd ui && npm install && npm run dev       # placeholder page on :3000
+cd cli && make test                   # unit tests
+cd cli && go run . create             # writes kubin-snapshot-*.tar.gz from the current kube context
+cd server && make test                # unit tests
+cd server && make run                 # server on :8080, only /healthz and /readyz so far
+cd ui && npm install && npm run dev   # placeholder page on :3000
 ```
 
 ## Local cluster

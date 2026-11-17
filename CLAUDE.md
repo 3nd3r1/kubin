@@ -5,7 +5,7 @@ Pastebin for Kubernetes clusters: `kubin create` packs the cluster into a tarbal
 ## Layout
 
 - `cli/`: the `kubin` command. Go, cobra, client-go.
-- `services/api-gateway/`, `services/shared/`: the server, being merged into `server/` (TASK-1).
+- `server/`: the server. Go, chi, log/slog. `make test`, `make lint`, `make run`.
 - `ui/`: Next.js placeholder, becoming a Vite React app embedded in the server (TASK-24). Tailwind, shadcn/ui.
 - `charts/kubin/`: Helm chart. `skaffold.yaml` runs it on kind. Broken until TASK-7.
 - `backlog/`: the board, managed with the `backlog` CLI.

@@ -3,13 +3,12 @@ kind: Config
 metadata:
   name: kubin-development
 
-# Build only the API Gateway for now
 build:
   artifacts:
     - image: kubin-api-gateway
-      context: services
+      context: server
       docker:
-        dockerfile: ./api-gateway/Dockerfile
+        dockerfile: Dockerfile
   # Use local registry for development
   local:
     push: false  # Don't push to registry, just build locally

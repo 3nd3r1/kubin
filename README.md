@@ -25,7 +25,7 @@ Early. The CLI collects namespaces and pods into a local `.tar.gz`. The server a
 ## Layout
 
 - `cli/`: the `kubin` command (Go, client-go)
-- `services/api-gateway/`: the server, moving to `server/`
+- `server/`: the server (Go, chi)
 - `ui/`: the web viewer, built into the server binary
 - `charts/`, `skaffold.yaml`: Helm chart and local dev loop
 - `backlog/`: tasks, milestones and decisions

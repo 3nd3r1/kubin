@@ -41,7 +41,7 @@ The core group is written as `core`. The full spec will be `docs/snapshot-format
 
 Go, cobra, client-go. `kubin create` uploads to `--server` or `KUBIN_SERVER` and prints the URL. `--output <file>` keeps the tarball instead, for air-gapped use. Collectors implement `collector.Collector` and the persister writes what they return into the tarball layout.
 
-## Server (`services/api-gateway/` today, `server/` after TASK-1)
+## Server (`server/`)
 
 One Go binary with chi. The parts the old design made into services are packages:
 
