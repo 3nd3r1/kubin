@@ -4,8 +4,9 @@ title: Bring the GitHub issue setup in line with the backlog
 status: To Do
 assignee: []
 created_date: '2026-11-17T10:04:00Z'
+updated_date: '2026-11-17T14:08:00Z'
 labels: []
-milestone: m-0
+milestone: m-3
 dependencies: []
 priority: low
 type: chore

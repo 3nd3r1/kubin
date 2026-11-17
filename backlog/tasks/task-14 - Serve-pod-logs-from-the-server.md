@@ -4,9 +4,10 @@ title: Serve pod logs from the server
 status: To Do
 assignee: []
 created_date: '2026-11-17T10:05:00Z'
+updated_date: '2026-11-17T14:08:00Z'
 labels:
   - server
-milestone: m-1
+milestone: m-0
 dependencies:
   - TASK-4
   - TASK-11

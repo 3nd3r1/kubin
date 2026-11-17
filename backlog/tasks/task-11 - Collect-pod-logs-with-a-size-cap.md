@@ -4,9 +4,10 @@ title: Collect pod logs with a size cap
 status: To Do
 assignee: []
 created_date: '2026-11-17T10:05:00Z'
+updated_date: '2026-11-17T14:08:00Z'
 labels:
   - cli
-milestone: m-1
+milestone: m-0
 dependencies:
   - TASK-2
 priority: high

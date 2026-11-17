@@ -4,9 +4,10 @@ title: Add make check for all parts and run it in CI
 status: To Do
 assignee: []
 created_date: '2026-11-17T10:04:00Z'
+updated_date: '2026-11-17T14:08:00Z'
 labels:
   - deploy
-milestone: m-0
+milestone: m-3
 dependencies: []
 priority: medium
 type: chore
