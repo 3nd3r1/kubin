@@ -4,6 +4,7 @@ title: S3 blob store
 status: To Do
 assignee: []
 created_date: '2026-11-17T10:05:00Z'
+updated_date: '2026-11-17T10:11:00Z'
 labels:
   - server
 milestone: m-3
@@ -22,6 +23,6 @@ A hosted instance with more than one replica cannot keep tarballs on local disk.
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [ ] #1 The blob interface has an S3 implementation chosen by config
-- [ ] #2 MinIO runs in the dev chart so the S3 path is tested locally
-- [ ] #3 Integration tests run against MinIO
+- [ ] #2 Works against AWS S3 and MinIO
+- [ ] #3 Integration tests run against a MinIO container started by the test
 <!-- AC:END -->

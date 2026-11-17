@@ -2,7 +2,7 @@
 
 ![Kubin Logo](docs/assets/logo_nobg.png)
 
-Pastebin for Kubernetes clusters. Run one command, get a link, and anyone with the link can browse the cluster as it was, in a Lens-like web UI.
+Pastebin for Kubernetes clusters. Run one command, get a link, and anyone with the link can browse the cluster as it was, in a Lens-like web UI. Self-hosting is one container.
 
 ```bash
 kubin create
@@ -10,6 +10,13 @@ kubin create
 ```
 
 It replaces attaching cluster dumps to tickets.
+
+Planned self-hosting (not working yet, see m-0):
+
+```bash
+docker run -p 8080:8080 -v kubin-data:/data ghcr.io/3nd3r1/kubin
+kubin create --server http://localhost:8080
+```
 
 ## Status
 
@@ -19,7 +26,7 @@ Early. The CLI collects namespaces and pods into a local `.tar.gz`. The server a
 
 - `cli/`: the `kubin` command (Go, client-go)
 - `services/api-gateway/`: the server, moving to `server/`
-- `ui/`: the web viewer (Next.js)
+- `ui/`: the web viewer, built into the server binary
 - `charts/`, `skaffold.yaml`: Helm chart and local dev loop
 - `backlog/`: tasks, milestones and decisions
 

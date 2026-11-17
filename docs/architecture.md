@@ -1,19 +1,32 @@
 # Architecture
 
-Kubin is three parts: a CLI that packs a cluster into one file, a server that stores it and answers queries about it, and a web UI that reads from the server. One server binary, one Postgres, one blob store.
+Kubin is a CLI and one server. The CLI packs a cluster into a tarball and uploads it. The server stores it, indexes it and serves both the API and the web UI from the same binary. A self-hosted install is one container and one volume.
 
 ```
-kubin create ──upload .tar.gz──▶ server ──▶ blob store (disk, later S3)
-                                   │
-                                   └──────▶ Postgres (snapshots, resource index)
-browser ──▶ ui (Next.js) ──REST──▶ server
+  laptop / CI                              kubin (one Go binary, one image)
+ ┌───────────────────┐                   ┌──────────────────────────────────┐
+ │ kubin create      │  POST tarball     │  /api/v1/...  REST API           │
+ │  collect, redact, │ ────────────────▶ │  /s/{id}      web UI (embedded)  │
+ │  pack, upload     │ ◀── {id, url} ─── │                                  │
+ └───────────────────┘                   │  blob ──▶ ./data or S3           │
+                                         │  store ─▶ SQLite or Postgres     │
+ browser ── https://kubin.you/s/7fK2q ─▶ └──────────────────────────────────┘
 ```
 
-The earlier design had seven services plus Kafka, ClickHouse and Redis. It was replaced before any of it was built. Why is in `backlog decision view decision-1`.
+The earlier design had seven services plus Kafka, ClickHouse and Redis. Why it changed: `backlog decision view decision-1` and `decision-2`.
+
+## Flow
+
+1. `kubin create` uses the current kubeconfig context, like kubectl.
+2. Collectors read resources and logs. Secret values and `managedFields` are stripped. The result is a versioned tarball.
+3. The CLI uploads it. The server validates it, stores the raw tarball in the blob store and writes one row per resource to the database.
+4. The server answers with a random, unguessable ID. The CLI prints the link.
+5. The browser loads the UI from the same server. The UI calls the API for resource lists, single objects and logs. Logs are streamed from the blob store.
+6. Snapshots expire and a job inside the server deletes them.
 
 ## Snapshot
 
-A snapshot is a gzipped tar. It is the contract between the CLI and the server, so its layout is versioned in `manifest.json`.
+A gzipped tar, and the contract between the CLI and the server. Its layout is versioned in `manifest.json`.
 
 ```
 manifest.json                                 format version, cluster info, CLI version, counts
@@ -22,28 +35,23 @@ resources/<group>/<version>/<kind>/_cluster/<name>.json     cluster-scoped kinds
 logs/<namespace>/<pod>/<container>.log
 ```
 
-The core group is written as `core`. The CLI strips `managedFields` and never writes Secret data. The full spec will live in `docs/snapshot-format.md` once TASK-2 lands.
+The core group is written as `core`. The full spec will be `docs/snapshot-format.md` (TASK-2).
 
 ## CLI (`cli/`)
 
-Go, cobra, client-go. `kubin create` reads the current kubeconfig context, runs each collector, writes the tarball and uploads it. It prints the snapshot URL. `--output <file>` keeps the tarball instead of uploading, for air-gapped use.
+Go, cobra, client-go. `kubin create` uploads to `--server` or `KUBIN_SERVER` and prints the URL. `--output <file>` keeps the tarball instead, for air-gapped use. Collectors implement `collector.Collector` and the persister writes what they return into the tarball layout.
 
-Collectors implement `collector.Collector`. Each returns resources, the persister writes them into the tarball layout.
+## Server (`services/api-gateway/` today, `server/` after TASK-1)
 
-## Server (`services/api-gateway/` today, moving to `server/` in TASK-1)
-
-One Go binary with chi. Everything the old design split into services is a package here:
+One Go binary with chi. The parts the old design made into services are packages:
 
 | Package | Job |
 |---|---|
-| `api` | HTTP handlers, request validation |
+| `api` | HTTP handlers, validation |
 | `snapshot` | upload: validate the tarball, store it, index it |
-| `store` | Postgres: snapshots table and resource index |
-| `blob` | raw tarballs and logs. Filesystem first, S3 later |
-
-Upload is synchronous. A snapshot is a few MB, so validating and indexing it inside the request is fine. If it stops being fine, the indexing moves to a goroutine and the snapshot gets a status. It doesn't need a queue.
-
-Postgres holds one row per snapshot and one row per resource (kind, namespace, name, the JSON). That is enough for listing, filtering and showing any resource. Logs stay as files in the blob store and are streamed to the UI. Log search starts as a scan of one log file. ClickHouse only comes back if that gets slow on real snapshots.
+| `store` | snapshots and resource index. SQLite by default, Postgres by config |
+| `blob` | raw tarballs. Local directory by default, S3 by config |
+| `web` | the built UI, embedded with go:embed |
 
 ### API
 
@@ -54,22 +62,35 @@ GET  /api/v1/snapshots/{id}/resources?kind=&namespace= list
 GET  /api/v1/snapshots/{id}/resources/{kind}/{ns}/{name}
 GET  /api/v1/snapshots/{id}/logs/{ns}/{pod}/{container}
 GET  /healthz, /readyz
+GET  /*                                                the UI
 ```
-
-Snapshot IDs are random and unguessable, since the link is the only access control until there is auth.
 
 ## UI (`ui/`)
 
-Next.js, Tailwind, shadcn/ui. `/s/{id}` is a snapshot. Layout follows Lens: kinds in a sidebar, a table per kind, a detail panel with YAML, events and logs. Read-only.
+A Vite React app with Tailwind and shadcn/ui, built into the server (TASK-24). `/s/{id}` is a snapshot. The layout follows Lens: kinds in a sidebar, a table per kind, a detail panel with YAML, events and logs. Read-only.
 
-## Deploy (`charts/`, `skaffold.yaml`)
+## Deploying
 
-An umbrella Helm chart with a subchart per deployable (server, ui) and Bitnami Postgres as a dependency. `skaffold dev` against a local kind cluster is the dev loop. The ArgoCD app-of-apps template stays off until there is a hosted instance.
+The same image covers three setups:
+
+| Setup | For | Runs |
+|---|---|---|
+| `docker run -v kubin-data:/data` | a team, a homelab, one VM | kubin with SQLite and files in the volume |
+| docker compose (TASK-27) | a small company on one VM | kubin, Postgres, MinIO |
+| Helm chart (TASK-7) | Kubernetes shops, the public instance | several replicas, Postgres, S3, ingress |
+
+SQLite and a local directory limit an install to one replica. More replicas need Postgres and S3. Install steps will be in `docs/self-hosting.md` (TASK-25).
+
+## Load
+
+Upload is synchronous. A snapshot should be a few MB, and unpacking it and inserting the rows is cheap next to receiving the bytes. Nobody has measured this yet. The server keeps no state outside the database and blob store, so it scales by adding replicas.
+
+A queue would let the server answer before indexing finishes. It would not reduce the total work. If indexing ever gets slow enough to hold up uploads, the next step is a jobs table in the database and a worker pool inside the server, and after that letting the CLI upload straight to S3 with presigned URLs. Kafka is not planned.
 
 ## Security
 
-A cluster dump can leak credentials. The rules:
+A cluster dump can leak credentials.
 
 - Secret objects are collected without `data` and `stringData`.
-- Env var values on pods can hold secrets. How to handle them is open (TASK-12).
-- Snapshot IDs are unguessable and snapshots expire.
+- Env var values on pods can hold secrets. The default is open (TASK-12).
+- Snapshot IDs are unguessable, since the link is the only access control until there is auth. Snapshots expire.

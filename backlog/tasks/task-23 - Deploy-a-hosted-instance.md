@@ -4,12 +4,13 @@ title: Deploy a hosted instance
 status: To Do
 assignee: []
 created_date: '2026-11-17T10:05:00Z'
+updated_date: '2026-11-17T10:11:00Z'
 labels:
   - deploy
 milestone: m-3
 dependencies:
+  - TASK-7
   - TASK-19
-  - TASK-20
   - TASK-21
   - TASK-22
 priority: medium

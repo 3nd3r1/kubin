@@ -1,21 +1,22 @@
 # Kubin
 
-Pastebin for Kubernetes clusters: `kubin create` packs the cluster into a tarball, uploads it, and prints a link to a Lens-like web view. Read `docs/architecture.md` and the direction (`backlog doc view doc-1`) first.
+Pastebin for Kubernetes clusters: `kubin create` packs the cluster into a tarball, uploads it, and prints a link to a Lens-like web view. Self-hosting is one container. Read `docs/architecture.md` and the direction (`backlog doc view doc-1`) first.
 
 ## Layout
 
 - `cli/`: the `kubin` command. Go, cobra, client-go.
 - `services/api-gateway/`, `services/shared/`: the server, being merged into `server/` (TASK-1).
-- `ui/`: Next.js, Tailwind, shadcn/ui.
-- `charts/kubin/`: umbrella Helm chart. `skaffold.yaml` runs it on kind.
+- `ui/`: Next.js placeholder, becoming a Vite React app embedded in the server (TASK-24). Tailwind, shadcn/ui.
+- `charts/kubin/`: Helm chart. `skaffold.yaml` runs it on kind. Broken until TASK-7.
 - `backlog/`: the board, managed with the `backlog` CLI.
 
 ## Rules
 
-- One server, Postgres and a blob store (decision-1). Don't add services, queues or caches without a decision.
+- One server, one image (decision-1, decision-2). Don't add services, queues or caches without a decision.
+- `docker run` with a volume must keep working with no other services. SQLite and a local directory are the defaults, Postgres and S3 are options, so SQL stays portable.
 - The snapshot tarball layout is the CLI to server contract. Changing it bumps the format version and updates `docs/snapshot-format.md`.
 - Nothing secret leaves the cluster. A new collector says how it handles credentials.
-- Tests use fakes for the Kubernetes API and a real Postgres for the server.
+- Tests use fakes for the Kubernetes API and real databases for the server: a temp SQLite file, Postgres once TASK-26 lands.
 
 ## Workflow
 
