@@ -21,8 +21,11 @@ Pastebin for Kubernetes clusters: `kubin create` packs the cluster into a tarbal
 ## Workflow
 
 - Tools come from `nix-shell`, which also puts the pinned `backlog` CLI on the path.
-- The user owns the direction (doc-1): the goal, the milestone order, pivots. Bring them only direction calls, as one question with a recommendation, and record each answer with `backlog decision create`. Only the user edits doc-1.
-- Agents own the tasks: create, split, update and close them without asking.
+- The user owns the direction (doc-1): the goal, the milestone order, pivots. Only the user edits doc-1. Bring them only direction calls, never implementation choices (decision-4):
+  - If it blocks the work at hand, ask in chat as one question with a recommendation, and record the answer with `backlog decision create -s accepted`.
+  - If it can wait, record it as a `proposed` decision (context, recommended choice, consequences) and keep working on something it doesn't block. The user sets it to `accepted` or `rejected: <why>`.
+  - At the start of a session, check `backlog decision list --plain` and act on answered proposals.
+- Agents own the tasks: create, split, update, close them and pick their milestone without asking.
 - Work the current milestone. Build only what it needs.
 - Commits: `feat:`, `fix:`, `chore:`, `docs:`, `build:`, `test:`, optional scope like `feat(cli):`. Short subject, no body, no trailers.
 
