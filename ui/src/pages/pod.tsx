@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { Link, useParams } from "react-router";
 import { stringify } from "yaml";
 
-import { getResource } from "@/lib/api";
+import { type Snapshot, getResource } from "@/lib/api";
 import type { ContainerState, ContainerStatus, Pod } from "@/lib/k8s";
 import { summarize } from "@/lib/pods";
 import { useSnapshot } from "@/lib/snapshot";
@@ -13,6 +13,8 @@ import { Badge } from "@/components/ui/badge";
 
 import { LoadError, Loading } from "@/components/common/states";
 import { PodStatus } from "@/components/common/status";
+import { PodEvents } from "@/components/pod/events";
+import { PodLogs } from "@/components/pod/logs";
 
 import { NotFoundPage } from "./not-found";
 
@@ -50,16 +52,15 @@ export function PodPage() {
     return (
         <div className="space-y-6">
             {back}
-            <PodDetail
-                pod={state.data}
-                capturedAt={snapshot.manifest.created_at}
-            />
+            <PodDetail pod={state.data} snapshot={snapshot} />
         </div>
     );
 }
 
-function PodDetail({ pod, capturedAt }: { pod: Pod; capturedAt: string }) {
+function PodDetail({ pod, snapshot }: { pod: Pod; snapshot: Snapshot }) {
+    const capturedAt = snapshot.manifest.created_at;
     const s = summarize(pod, capturedAt);
+    const podKey = `${s.namespace}/${s.name}`;
     const yaml = useMemo(() => stringify(pod, { lineWidth: 0 }), [pod]);
     const statuses = new Map(
         [
@@ -120,6 +121,19 @@ function PodDetail({ pod, capturedAt }: { pod: Pod; capturedAt: string }) {
                     ))}
                 </div>
             </section>
+
+            <PodLogs
+                key={podKey}
+                snapshotId={snapshot.id}
+                manifest={snapshot.manifest}
+                pod={pod}
+            />
+
+            <PodEvents
+                snapshotId={snapshot.id}
+                pod={pod}
+                capturedAt={capturedAt}
+            />
 
             <section aria-labelledby="yaml" className="space-y-3">
                 <h3 id="yaml" className="text-lg font-semibold">

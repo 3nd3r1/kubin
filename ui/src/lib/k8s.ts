@@ -3,6 +3,7 @@
 
 export type ObjectMeta = {
     name?: string;
+    uid?: string;
     namespace?: string;
     creationTimestamp?: string;
     deletionTimestamp?: string;
@@ -58,4 +59,24 @@ export type Pod = {
         containerStatuses?: ContainerStatus[];
         initContainerStatuses?: ContainerStatus[];
     };
+};
+
+export type Event = {
+    metadata?: ObjectMeta;
+    involvedObject?: {
+        kind?: string;
+        namespace?: string;
+        name?: string;
+        uid?: string;
+    };
+    type?: string;
+    reason?: string;
+    message?: string;
+    count?: number;
+    firstTimestamp?: string | null;
+    lastTimestamp?: string | null;
+    eventTime?: string | null;
+    series?: { count?: number; lastObservedTime?: string };
+    source?: { component?: string };
+    reportingComponent?: string;
 };

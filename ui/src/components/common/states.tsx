@@ -9,3 +9,12 @@ export function LoadError({ message }: { message: string }) {
         </p>
     );
 }
+
+/** Says why a section has nothing to show, in place of an empty panel. */
+export function Empty({ children }: { children: React.ReactNode }) {
+    return (
+        <p className="text-muted-foreground rounded-lg border border-dashed px-4 py-6 text-sm">
+            {children}
+        </p>
+    );
+}
