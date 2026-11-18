@@ -12,7 +12,11 @@ cd cli && go run . create --server http://localhost:8080   # snapshot the curren
 cd cli && go run . create -o cluster.tar.gz                # or keep the tarball instead
 cd ui && npm ci && make dev          # UI on :5173 with hot reload, /api proxied to :8080
 cd ui && make build                   # build the UI into the server; rebuild the server to embed it
+make image                            # the release image as kubin:dev, UI included
+docker run -p 8080:8080 -v kubin-data:/data kubin:dev   # run it like a self-hoster, see self-hosting.md
 ```
+
+The `Dockerfile` is at the repo root because the image needs both `ui/` and `server/`.
 
 ## Local cluster
 

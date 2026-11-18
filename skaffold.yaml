@@ -6,7 +6,7 @@ metadata:
 build:
   artifacts:
     - image: kubin-api-gateway
-      context: server
+      context: .
       docker:
         dockerfile: Dockerfile
   # Use local registry for development

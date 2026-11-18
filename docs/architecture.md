@@ -79,7 +79,7 @@ The same image covers three setups:
 | docker compose (TASK-27) | a small company on one VM | kubin, Postgres, MinIO |
 | Helm chart (TASK-7) | Kubernetes shops, the public instance | several replicas, Postgres, S3, ingress |
 
-SQLite and a local directory limit an install to one replica. More replicas need Postgres and S3. Install steps will be in `docs/self-hosting.md` (TASK-25).
+SQLite and a local directory limit an install to one replica. More replicas need Postgres and S3. Install steps and configuration are in [self-hosting.md](self-hosting.md).
 
 ## Load
 

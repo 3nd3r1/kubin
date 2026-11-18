@@ -11,12 +11,15 @@ kubin create
 
 It replaces attaching cluster dumps to tickets.
 
-Planned self-hosting (not working yet, see m-0):
+Self-hosting is one container and a volume. There is no released image yet (TASK-19), so build it from the repo:
 
 ```bash
-docker run -p 8080:8080 -v kubin-data:/data ghcr.io/3nd3r1/kubin
+docker build -t kubin .
+docker run -p 8080:8080 -v kubin-data:/data kubin
 kubin create --server http://localhost:8080
 ```
+
+Configuration and bind mounts: [docs/self-hosting.md](docs/self-hosting.md).
 
 ## Status
 
