@@ -1,48 +1,31 @@
-# Kubin (WIP)
+Kubin turns a crashing pod into a link that shows its status, events, and logs.
 
-![Kubin Logo](docs/assets/logo_nobg.png)
+<!-- Add the demo recording here after capturing the browser flow. -->
 
-Pastebin for Kubernetes clusters. Run one command, get a link, and anyone with the link can browse the cluster as it was, in a Lens-like web UI. Self-hosting is one container.
-
-```bash
-kubin create
-# https://kubin.example.com/s/7fK2q...
+```sh
+git clone https://github.com/3nd3r1/kubin.git
+cd kubin
+./demo/run.sh
 ```
 
-It replaces attaching cluster dumps to tickets.
+The demo needs Docker, kind, kubectl, Go, and curl. It builds and starts Kubin, creates a local cluster, applies the failing pod, and uploads a snapshot. Open the URL printed by the script. The cluster and server stay running until you remove them with the commands printed at the end.
 
-Self-hosting is one container and a volume. There is no released image yet (TASK-19), so build it from the repo:
+## What works
 
-```bash
-docker build -t kubin .
-docker run -p 8080:8080 -v kubin-data:/data kubin
-kubin create --server http://localhost:8080
-```
+The demo captures namespaces, pods, pod events, and container logs. Its snapshot link opens a read-only page with the pod status, events, and logs.
 
-Configuration and bind mounts: [docs/self-hosting.md](docs/self-hosting.md).
+## What does not
 
-## Status
-
-Early. The CLI collects namespaces and pods into a local `.tar.gz`. The server and UI are skeletons. Nothing uploads yet. The work is on the board, see [Development](#development).
-
-## Layout
-
-- `cli/`: the `kubin` command (Go, client-go)
-- `server/`: the server (Go, chi)
-- `ui/`: the web viewer, built into the server binary
-- `charts/`, `skaffold.yaml`: Helm chart and local dev loop
-- `backlog/`: tasks, milestones and decisions
-
-How the parts fit: [docs/architecture.md](docs/architecture.md).
+Kubin does not yet collect the other workload, networking, config, and node resources. The CLI cannot choose which resources to capture. There is no authentication, and the repository does not publish a release image yet. See [the roadmap](backlog/docs/doc-1%20-%20Direction.md) for planned work and [self-hosting](docs/self-hosting.md) for running the server yourself.
 
 ## Development
 
-```bash
-nix-shell            # or direnv: go, node, kind, helm, skaffold, backlog
-backlog board        # what's being worked on
+```sh
+nix-shell
+backlog board
 ```
 
-More in [docs/development.md](docs/development.md).
+More in [docs/development.md](docs/development.md). The system design is in [docs/architecture.md](docs/architecture.md).
 
 ## License
 

@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubin-demo
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: payment-api
+  namespace: kubin-demo
+  labels:
+    app: payment-api
+spec:
+  containers:
+    - name: payment-api
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - echo 'payment-api: cannot connect to postgres at db:5432' >&2; exit 1
