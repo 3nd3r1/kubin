@@ -15,11 +15,11 @@ import (
 )
 
 // MinFormatVersion and MaxFormatVersion bound the snapshot formats this
-// server reads. See docs/snapshot-format.md. v2 only adds previous logs and
-// the logs section of the manifest to v1, so one reader covers both.
+// server reads. See docs/snapshot-format.md. v2 and v3 only add files and
+// manifest fields to v1, so one reader covers all three.
 const (
 	MinFormatVersion = 1
-	MaxFormatVersion = 2
+	MaxFormatVersion = 3
 )
 
 const (

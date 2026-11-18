@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
@@ -14,10 +15,13 @@ import (
 
 	"github.com/3nd3r1/kubin/cli/pkg/collector"
 	"github.com/3nd3r1/kubin/cli/pkg/kube"
+	"github.com/3nd3r1/kubin/cli/pkg/redact"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/version"
 	fakediscovery "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/kubernetes/fake"
@@ -58,7 +62,7 @@ func TestCreateWritesLayout(t *testing.T) {
 	)
 	cs.Discovery().(*fakediscovery.FakeDiscovery).FakedServerVersion = &version.Info{GitVersion: "v1.33.1"}
 
-	mgr := NewManager(kube.NewFromClientset(cs, "kind-kubin", "kind-kubin"), "v0.0.0-test", collector.DefaultLogOptions())
+	mgr := NewManager(kube.NewFromClientset(cs, "kind-kubin", "kind-kubin"), "v0.0.0-test", Options{Logs: collector.DefaultLogOptions()})
 	created := time.Date(2026, 11, 17, 10, 0, 0, 0, time.UTC)
 	mgr.now = func() time.Time { return created }
 
@@ -82,7 +86,7 @@ func TestCreateWritesLayout(t *testing.T) {
 	var m Manifest
 	require.NoError(t, json.Unmarshal(files["manifest.json"], &m))
 	assert.Equal(t, Manifest{
-		FormatVersion: 2,
+		FormatVersion: 3,
 		CreatedAt:     created,
 		CLIVersion:    "v0.0.0-test",
 		Cluster:       Cluster{Context: "kind-kubin", Name: "kind-kubin", ServerVersion: "v1.33.1"},
@@ -91,7 +95,8 @@ func TestCreateWritesLayout(t *testing.T) {
 			{Group: "core", Version: "v1", Kind: "Namespace", Count: 2},
 			{Group: "core", Version: "v1", Kind: "Pod", Count: 2},
 		},
-		Logs: Logs{TailLines: 1000, MaxBytes: 1 << 20, Files: []LogFile{}},
+		Logs:       Logs{TailLines: 1000, MaxBytes: 1 << 20, Files: []LogFile{}},
+		Redactions: []string{"secret-data", "env-values", "last-applied-configuration"},
 	}, m)
 
 	var pod map[string]any
@@ -123,7 +128,7 @@ func TestCreateWritesLogs(t *testing.T) {
 	})
 	cs.Discovery().(*fakediscovery.FakeDiscovery).FakedServerVersion = &version.Info{GitVersion: "v1.33.1"}
 
-	mgr := NewManager(kube.NewFromClientset(cs, "kind-kubin", "kind-kubin"), "v0.0.0-test", collector.DefaultLogOptions())
+	mgr := NewManager(kube.NewFromClientset(cs, "kind-kubin", "kind-kubin"), "v0.0.0-test", Options{Logs: collector.DefaultLogOptions()})
 	var buf bytes.Buffer
 	m, err := mgr.Create(context.Background(), &buf)
 	require.NoError(t, err)
@@ -148,4 +153,97 @@ func TestCreateWritesLogs(t *testing.T) {
 	var written Manifest
 	require.NoError(t, json.Unmarshal(files["manifest.json"], &written))
 	assert.Equal(t, m.Logs, written.Logs)
+}
+
+// staticCollector returns fixed resources, for kinds the CLI doesn't
+// collect yet.
+type staticCollector []collector.Resource
+
+func (staticCollector) Name() string { return "static" }
+
+func (c staticCollector) Collect(context.Context) ([]collector.Resource, error) { return c, nil }
+
+func typed(t *testing.T, group, version, kind string, obj any) collector.Resource {
+	t.Helper()
+	m, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	require.NoError(t, err)
+	m["apiVersion"], m["kind"] = version, kind
+	if group != "" {
+		m["apiVersion"] = group + "/" + version
+	}
+	meta := m["metadata"].(map[string]any)
+	ns, _ := meta["namespace"].(string)
+	return collector.Resource{Group: group, Version: version, Kind: kind, Namespace: ns, Name: meta["name"].(string), Object: m}
+}
+
+func TestCreateKeepsSecretsOut(t *testing.T) {
+	const (
+		secretValue = "hunter2-secret-value"
+		envValue    = "postgres://admin:env-secret@db"
+	)
+	lastApplied := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"db","namespace":"prod"},"stringData":{"password":"` + secretValue + `"}}`
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "prod", Name: "db", Annotations: map[string]string{
+			"kubectl.kubernetes.io/last-applied-configuration": lastApplied,
+		}},
+		Data: map[string][]byte{"password": []byte(secretValue)},
+	}
+	env := []corev1.EnvVar{
+		{Name: "DATABASE_URL", Value: envValue},
+		{Name: "PASSWORD", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{
+			LocalObjectReference: corev1.LocalObjectReference{Name: "db"}, Key: "password",
+		}}},
+	}
+	deploy := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "prod", Name: "api"},
+		Spec: appsv1.DeploymentSpec{Template: corev1.PodTemplateSpec{Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{Name: "api", Env: env}},
+		}}},
+	}
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "prod", Name: "api-1"},
+		Spec:       corev1.PodSpec{InitContainers: []corev1.Container{{Name: "migrate", Env: env}}},
+	}
+
+	create := func(t *testing.T, opts redact.Options) []byte {
+		cs := fake.NewClientset(pod)
+		cs.Discovery().(*fakediscovery.FakeDiscovery).FakedServerVersion = &version.Info{GitVersion: "v1.33.1"}
+		mgr := NewManager(kube.NewFromClientset(cs, "kind-kubin", "kind-kubin"), "v0.0.0-test",
+			Options{Logs: collector.DefaultLogOptions(), Redact: opts})
+		mgr.collectors = append(mgr.collectors, staticCollector{
+			typed(t, "", "v1", "Secret", secret),
+			typed(t, "apps", "v1", "Deployment", deploy),
+		})
+		var buf bytes.Buffer
+		_, err := mgr.Create(context.Background(), &buf)
+		require.NoError(t, err)
+
+		names, files := readArchive(t, buf.Bytes())
+		require.Contains(t, names, "resources/core/v1/Secret/prod/db.json")
+		require.Contains(t, names, "resources/apps/v1/Deployment/prod/api.json")
+		var all []byte
+		for _, b := range files {
+			all = append(all, b...)
+		}
+		return all
+	}
+
+	t.Run("default", func(t *testing.T) {
+		all := string(create(t, redact.Options{}))
+		for _, s := range []string{secretValue, base64.StdEncoding.EncodeToString([]byte(secretValue)), envValue} {
+			assert.NotContains(t, all, s)
+		}
+		assert.Contains(t, all, `"secretKeyRef"`, "valueFrom references stay")
+		assert.Contains(t, all, `"DATABASE_URL"`, "env names stay")
+		assert.Contains(t, all, `"password": ""`, "Secret keys stay")
+		assert.Contains(t, all, `"env-values"`, "the manifest lists the rule")
+	})
+
+	t.Run("keep env values", func(t *testing.T) {
+		all := string(create(t, redact.Options{KeepEnvValues: true}))
+		assert.Contains(t, all, envValue)
+		assert.NotContains(t, all, secretValue)
+		assert.NotContains(t, all, base64.StdEncoding.EncodeToString([]byte(secretValue)))
+		assert.NotContains(t, all, `"env-values"`)
+	})
 }

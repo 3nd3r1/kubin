@@ -51,9 +51,9 @@ func Tarball(t testing.TB, files ...File) []byte {
 	return buf.Bytes()
 }
 
-// Manifest is a v2 manifest.json matching FixtureFiles.
+// Manifest is a v3 manifest.json matching FixtureFiles.
 const Manifest = `{
-  "format_version": 2,
+  "format_version": 3,
   "created_at": "2026-11-17T10:00:00Z",
   "cli_version": "v0.1.0",
   "cluster": {"context": "kind-kubin", "name": "kind-kubin", "server_version": "v1.33.1"},
@@ -68,7 +68,8 @@ const Manifest = `{
       {"namespace": "default", "pod": "web-0", "container": "nginx", "previous": false, "truncated": false},
       {"namespace": "default", "pod": "web-0", "container": "nginx", "previous": true, "truncated": true}
     ]
-  }
+  },
+  "redactions": ["secret-data", "env-values", "last-applied-configuration"]
 }`
 
 // FixtureFiles is a small snapshot as the CLI writes it: two namespaces

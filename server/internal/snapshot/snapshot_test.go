@@ -97,7 +97,7 @@ func TestUploadRejects(t *testing.T) {
 		{"empty archive", snapshottest.Tarball(t), "empty archive"},
 		{"manifest not first", snapshottest.Tarball(t, pod, manifest), "first entry"},
 		{"bad manifest", snapshottest.Tarball(t, F{Name: "manifest.json", Body: "{"}), "manifest.json"},
-		{"unknown version", snapshottest.Tarball(t, F{Name: "manifest.json", Body: `{"format_version":3}`}), "unsupported format_version 3"},
+		{"unknown version", snapshottest.Tarball(t, F{Name: "manifest.json", Body: `{"format_version":4}`}), "unsupported format_version 4"},
 		{"missing version", snapshottest.Tarball(t, F{Name: "manifest.json", Body: `{}`}), "unsupported format_version 0"},
 		{"dot dot", snapshottest.Tarball(t, manifest, F{Name: "resources/core/v1/Pod/../web.json", Body: "{}"}), "unsafe path segment"},
 		{"absolute", snapshottest.Tarball(t, manifest, F{Name: "/etc/passwd", Body: "x"}), "empty path segment"},
@@ -163,7 +163,8 @@ func TestUploadIndexesFixture(t *testing.T) {
 }
 
 func TestUploadReadsFormatV1(t *testing.T) {
-	// v1 is v2 without previous logs or the logs section of the manifest.
+	// v1 is v3 without previous logs and the logs and redactions sections of
+	// the manifest.
 	e := newService(t)
 	files := snapshottest.FixtureFiles()
 	files[0].Body = `{"format_version": 1, "created_at": "2026-11-17T10:00:00Z"}`

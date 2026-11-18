@@ -15,7 +15,7 @@ import (
 // what Kubernetes saw happen to a pod, like back-offs and failed pulls.
 //
 // Credentials: events carry messages written by controllers and kubelets,
-// not object data, so nothing is redacted here. TASK-12 owns redaction.
+// not object data. The redact rules still run on them, as on every object.
 type EventsCollector struct {
 	client kube.Client
 	warn   func(msg string, fields ...any)

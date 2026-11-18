@@ -11,6 +11,7 @@ import (
 	"github.com/3nd3r1/kubin/cli/pkg/collector"
 	"github.com/3nd3r1/kubin/cli/pkg/kube"
 	"github.com/3nd3r1/kubin/cli/pkg/log"
+	"github.com/3nd3r1/kubin/cli/pkg/redact"
 	"github.com/3nd3r1/kubin/cli/pkg/snapshot"
 	"github.com/3nd3r1/kubin/cli/pkg/upload"
 	"github.com/spf13/cobra"
@@ -26,6 +27,8 @@ type createOptions struct {
 	TempDir string
 	// LogTail is the most lines kept per container log.
 	LogTail int
+	// KeepEnvValues keeps literal env var values in pod specs.
+	KeepEnvValues bool
 }
 
 var createOpts createOptions
@@ -63,6 +66,8 @@ func init() {
 		"write the snapshot to this file and don't upload it")
 	createCmd.Flags().IntVar(&createOpts.LogTail, "log-tail", collector.DefaultLogTailLines,
 		"keep at most this many lines of each container log")
+	createCmd.Flags().BoolVar(&createOpts.KeepEnvValues, "keep-env-values", false,
+		"keep env var values in pod specs; by default they are dropped because they can hold credentials")
 }
 
 // runCreate collects the cluster and either writes the tarball to
@@ -70,7 +75,10 @@ func init() {
 func runCreate(ctx context.Context, opts createOptions, client kube.Client, stdout io.Writer) error {
 	logs := collector.DefaultLogOptions()
 	logs.TailLines = opts.LogTail
-	mgr := snapshot.NewManager(client, version, logs)
+	mgr := snapshot.NewManager(client, version, snapshot.Options{
+		Logs:   logs,
+		Redact: redact.Options{KeepEnvValues: opts.KeepEnvValues},
+	})
 
 	if opts.Output != "" {
 		manifest, err := writeSnapshot(ctx, mgr, opts.Output)

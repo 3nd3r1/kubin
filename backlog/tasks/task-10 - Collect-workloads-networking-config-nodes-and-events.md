@@ -4,7 +4,7 @@ title: Collect workloads, networking, config and nodes
 status: To Do
 assignee: []
 created_date: '2026-11-17T10:05:00Z'
-updated_date: '2026-11-17T14:08:00Z'
+updated_date: '2026-11-18T08:50:00Z'
 labels:
   - cli
 milestone: m-1
@@ -29,3 +29,9 @@ Pods, namespaces and events alone do not explain a broken cluster. Debugging nee
 - [ ] #3 The kind list is one place in the code
 - [ ] #4 Tests cover discovery, allowlist and the RBAC skip with a fake client
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+From TASK-12: every collected object already goes through redact.Redactor in snapshot.Manager, so Secrets collected here get secret-data, and workload templates get env-values, with no extra work. ConfigMaps and container command/args are not redacted; say in the collector how that is handled (TASK-12 docs list them as not covered).
+<!-- SECTION:NOTES:END -->

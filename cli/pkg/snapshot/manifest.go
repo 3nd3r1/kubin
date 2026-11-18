@@ -7,7 +7,7 @@ import (
 
 // FormatVersion is the snapshot format this CLI writes. See
 // docs/snapshot-format.md.
-const FormatVersion = 2
+const FormatVersion = 3
 
 type Manifest struct {
 	FormatVersion int         `json:"format_version"`
@@ -16,6 +16,8 @@ type Manifest struct {
 	Cluster       Cluster     `json:"cluster"`
 	Resources     []KindCount `json:"resources"`
 	Logs          Logs        `json:"logs"`
+	// Redactions names the redact rules that ran on every object.
+	Redactions []string `json:"redactions"`
 }
 
 type Cluster struct {

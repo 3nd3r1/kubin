@@ -10,6 +10,7 @@ import (
 
 	"github.com/3nd3r1/kubin/cli/pkg/collector"
 	"github.com/3nd3r1/kubin/cli/pkg/kube"
+	"github.com/3nd3r1/kubin/cli/pkg/redact"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -18,18 +19,27 @@ type Manager struct {
 	client     kube.Client
 	collectors []collector.Collector
 	logs       *collector.LogsCollector
+	redactor   *redact.Redactor
 	cliVersion string
 	now        func() time.Time
 }
 
-func NewManager(client kube.Client, cliVersion string, logs collector.LogOptions) *Manager {
+// Options are the choices kubin create offers about what goes in a
+// snapshot.
+type Options struct {
+	Logs   collector.LogOptions
+	Redact redact.Options
+}
+
+func NewManager(client kube.Client, cliVersion string, opts Options) *Manager {
 	return &Manager{
 		client: client,
 		collectors: []collector.Collector{
 			collector.NewCoreCollector(client),
 			collector.NewEventsCollector(client),
 		},
-		logs:       collector.NewLogsCollector(client, logs),
+		logs:       collector.NewLogsCollector(client, opts.Logs),
+		redactor:   redact.New(opts.Redact),
 		cliVersion: cliVersion,
 		now:        time.Now,
 	}
@@ -64,6 +74,7 @@ func (m *Manager) Create(ctx context.Context, out io.Writer) (_ Manifest, err er
 				}
 				pods = append(pods, p)
 			}
+			m.redactor.Object(r.Group, r.Kind, r.Object)
 			if err := w.AddResource(r); err != nil {
 				return Manifest{}, err
 			}
@@ -85,7 +96,8 @@ func (m *Manager) Create(ctx context.Context, out io.Writer) (_ Manifest, err er
 			Name:          info.Name,
 			ServerVersion: info.ServerVersion,
 		},
-		Resources: w.Counts(),
+		Resources:  w.Counts(),
+		Redactions: m.redactor.Rules(),
 		Logs: Logs{
 			TailLines: logOpts.TailLines,
 			MaxBytes:  logOpts.MaxBytes,

@@ -18,7 +18,7 @@ The earlier design had seven services plus Kafka, ClickHouse and Redis. Why it c
 ## Flow
 
 1. `kubin create` uses the current kubeconfig context, like kubectl.
-2. Collectors read resources and logs. Secret values and `managedFields` are stripped. The result is a versioned tarball.
+2. Collectors read resources and logs. Secret values, env var values and `managedFields` are stripped. The result is a versioned tarball.
 3. The CLI uploads it. The server validates it, stores the raw tarball in the blob store and writes one row per resource to the database.
 4. The server answers with a random, unguessable ID. The CLI prints the link.
 5. The browser loads the UI from the same server. The UI calls the API for resource lists, single objects and logs. Logs are streamed from the blob store.
@@ -91,6 +91,6 @@ A queue would let the server answer before indexing finishes. It would not reduc
 
 A cluster dump can leak credentials.
 
-- Secret objects are collected without `data` and `stringData`.
-- Env var values on pods can hold secrets. The default is open (TASK-12).
+- Every object goes through `redact.Redactor` in the CLI, whichever collector produced it. Secret values are emptied with their keys kept, env var values are dropped (decision-5, `--keep-env-values` opts out), and the `last-applied-configuration` annotation gets the same treatment. The manifest lists the rules that ran. Details in [snapshot-format.md](snapshot-format.md#redaction).
+- Logs, container args and ConfigMaps are not redacted.
 - Snapshot IDs are unguessable, since the link is the only access control until there is auth. Snapshots expire.

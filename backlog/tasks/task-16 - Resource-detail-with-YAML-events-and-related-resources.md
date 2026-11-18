@@ -4,6 +4,7 @@ title: Resource detail with YAML, events and related resources
 status: To Do
 assignee: []
 created_date: '2026-11-17T10:05:00Z'
+updated_date: '2026-11-18T08:50:00Z'
 labels:
   - ui
 milestone: m-2
@@ -26,3 +27,9 @@ Debugging means jumping from a failing pod to its ReplicaSet, Deployment, Servic
 - [ ] #3 Owner references and owned resources are links
 - [ ] #4 Pods link to their node and to Services whose selector matches them
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+From TASK-12: when the manifest redactions list has env-values, show env entries without value or valueFrom as redacted, not as empty. Secret data values are empty strings under secret-data.
+<!-- SECTION:NOTES:END -->
