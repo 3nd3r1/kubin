@@ -8,7 +8,7 @@ cd kubin
 ./demo/run.sh
 ```
 
-The demo needs Docker, kind, kubectl, Go, and curl. It builds and starts Kubin, creates a local cluster, applies the failing pod, and uploads a snapshot. Open the URL printed by the script. The cluster and server stay running until you remove them with the commands printed at the end.
+The demo needs Docker, kind, kubectl, Go, and curl. It builds and starts Kubin, creates a local cluster, applies the failing pod, and uploads a snapshot. Open the URL printed by the script. Kubin listens on port 8080; set `KUBIN_PORT` to use another. The cluster and server stay running until you remove them with the commands printed at the end.
 
 ## What works
 

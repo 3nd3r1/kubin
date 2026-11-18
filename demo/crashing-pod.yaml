@@ -17,4 +17,6 @@ spec:
       command:
         - sh
         - -c
-        - echo 'payment-api: cannot connect to postgres at db:5432' >&2; exit 1
+        - |
+          echo 'payment-api: cannot connect to postgres at db:5432' >&2
+          exit 1

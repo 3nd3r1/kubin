@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-11-17T14:08:00Z'
-updated_date: '2026-11-18T12:43:00Z'
+updated_date: '2026-11-18T13:22:00Z'
 labels:
   - docs
 milestone: m-0
@@ -48,4 +48,6 @@ From TASK-5: CLI progress on stderr is zap JSON lines. For the recording it shou
 Added demo/crashing-pod.yaml and demo/run.sh. The runner builds the image and CLI, starts kind and Kubin, applies the pod, waits for a restart, and uploads a snapshot. Rewrote README around the demo and current limits. `bash -n demo/run.sh` and `git diff --check` pass.
 
 End-to-end run is pending: Docker access is denied in this environment. Recording is pending: no browser or screen-recording tool is available here. Acceptance criteria remain unchecked.
+
+Claude ran demo/run.sh end to end on 2026-11-18 and fixed four bugs: the pod command was parsed as a YAML map, the pod apply raced the namespace's default service account, the readiness curl gave up on a connection reset, and a failed docker run left a Created container behind. Added KUBIN_PORT. The snapshot carries the crash line in both the current and previous logs. Recording still pending.
 <!-- SECTION:NOTES:END -->
