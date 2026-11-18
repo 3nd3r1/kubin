@@ -51,24 +51,34 @@ func Tarball(t testing.TB, files ...File) []byte {
 	return buf.Bytes()
 }
 
-// Manifest is a v1 manifest.json matching FixtureFiles.
+// Manifest is a v2 manifest.json matching FixtureFiles.
 const Manifest = `{
-  "format_version": 1,
+  "format_version": 2,
   "created_at": "2026-11-17T10:00:00Z",
   "cli_version": "v0.1.0",
   "cluster": {"context": "kind-kubin", "name": "kind-kubin", "server_version": "v1.33.1"},
   "resources": [
     {"group": "core", "version": "v1", "kind": "Namespace", "count": 2},
     {"group": "core", "version": "v1", "kind": "Pod", "count": 2}
-  ]
+  ],
+  "logs": {
+    "tail_lines": 1000,
+    "max_bytes": 1048576,
+    "files": [
+      {"namespace": "default", "pod": "web-0", "container": "nginx", "previous": false, "truncated": false},
+      {"namespace": "default", "pod": "web-0", "container": "nginx", "previous": true, "truncated": true}
+    ]
+  }
 }`
 
 // FixtureFiles is a small snapshot as the CLI writes it: two namespaces
-// (cluster-scoped), two pods and one log file.
+// (cluster-scoped), two pods, and the current and previous log of one
+// container.
 func FixtureFiles() []File {
 	return []File{
 		{Name: "manifest.json", Body: Manifest},
 		{Name: "logs/default/web-0/nginx.log", Body: "started\n"},
+		{Name: "logs/default/web-0/nginx.previous.log", Body: "panic: boom\n"},
 		{Name: "resources/core/v1/Namespace/_cluster/default.json", Body: `{
   "apiVersion": "v1", "kind": "Namespace", "metadata": {"name": "default"}
 }`},

@@ -97,12 +97,12 @@ func TestUploadRejects(t *testing.T) {
 		{"empty archive", snapshottest.Tarball(t), "empty archive"},
 		{"manifest not first", snapshottest.Tarball(t, pod, manifest), "first entry"},
 		{"bad manifest", snapshottest.Tarball(t, F{Name: "manifest.json", Body: "{"}), "manifest.json"},
-		{"unknown version", snapshottest.Tarball(t, F{Name: "manifest.json", Body: `{"format_version":2}`}), "unsupported format_version 2"},
+		{"unknown version", snapshottest.Tarball(t, F{Name: "manifest.json", Body: `{"format_version":3}`}), "unsupported format_version 3"},
 		{"missing version", snapshottest.Tarball(t, F{Name: "manifest.json", Body: `{}`}), "unsupported format_version 0"},
 		{"dot dot", snapshottest.Tarball(t, manifest, F{Name: "resources/core/v1/Pod/../web.json", Body: "{}"}), "unsafe path segment"},
 		{"absolute", snapshottest.Tarball(t, manifest, F{Name: "/etc/passwd", Body: "x"}), "empty path segment"},
-		{"outside layout", snapshottest.Tarball(t, manifest, F{Name: "extra.txt", Body: "x"}), "not part of the v1 layout"},
-		{"short resource path", snapshottest.Tarball(t, manifest, F{Name: "resources/core/v1/Pod/web.json", Body: "{}"}), "not part of the v1 layout"},
+		{"outside layout", snapshottest.Tarball(t, manifest, F{Name: "extra.txt", Body: "x"}), "not part of the snapshot layout"},
+		{"short resource path", snapshottest.Tarball(t, manifest, F{Name: "resources/core/v1/Pod/web.json", Body: "{}"}), "not part of the snapshot layout"},
 		{"not json suffix", snapshottest.Tarball(t, manifest, F{Name: "resources/core/v1/Pod/default/web.yaml", Body: "{}"}), "<name>.json"},
 		{"bad json", snapshottest.Tarball(t, manifest, F{Name: pod.Name, Body: "{"}), "web.json"},
 		{"json not object", snapshottest.Tarball(t, manifest, F{Name: pod.Name, Body: "[]"}), "not a JSON object"},
@@ -159,5 +159,28 @@ func TestUploadIndexesFixture(t *testing.T) {
 	}
 	if want := `{"apiVersion":"v1","kind":"Namespace","metadata":{"name":"kube-system"}}`; obj != want {
 		t.Errorf("object stored as %s, want compacted %s", obj, want)
+	}
+}
+
+func TestUploadReadsFormatV1(t *testing.T) {
+	// v1 is v2 without previous logs or the logs section of the manifest.
+	e := newService(t)
+	files := snapshottest.FixtureFiles()
+	files[0].Body = `{"format_version": 1, "created_at": "2026-11-17T10:00:00Z"}`
+	var v1 []snapshottest.File
+	for _, f := range files {
+		if !strings.HasSuffix(f.Name, ".previous.log") {
+			v1 = append(v1, f)
+		}
+	}
+	if _, err := e.svc.Upload(context.Background(), bytes.NewReader(snapshottest.Tarball(t, v1...))); err != nil {
+		t.Fatal(err)
+	}
+	var version int
+	if err := e.raw.QueryRow(`SELECT format_version FROM snapshots`).Scan(&version); err != nil {
+		t.Fatal(err)
+	}
+	if version != 1 {
+		t.Errorf("format_version stored as %d, want 1", version)
 	}
 }

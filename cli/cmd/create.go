@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/3nd3r1/kubin/cli/pkg/collector"
 	"github.com/3nd3r1/kubin/cli/pkg/kube"
 	"github.com/3nd3r1/kubin/cli/pkg/log"
 	"github.com/3nd3r1/kubin/cli/pkg/snapshot"
@@ -23,6 +24,8 @@ type createOptions struct {
 	// TempDir holds the snapshot until it is uploaded. Empty means
 	// os.TempDir.
 	TempDir string
+	// LogTail is the most lines kept per container log.
+	LogTail int
 }
 
 var createOpts createOptions
@@ -39,6 +42,9 @@ Use --output to keep the snapshot as a file instead of uploading it.`,
   kubin create --output cluster.tar.gz`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		if createOpts.LogTail < 1 {
+			return errors.New("--log-tail must be at least 1")
+		}
 		if createOpts.Output == "" && createOpts.Server == "" {
 			return errors.New("no kubin server: pass --server or set KUBIN_SERVER, or use --output to write a file")
 		}
@@ -55,12 +61,16 @@ func init() {
 		"kubin server to upload to (env KUBIN_SERVER)")
 	createCmd.Flags().StringVarP(&createOpts.Output, "output", "o", "",
 		"write the snapshot to this file and don't upload it")
+	createCmd.Flags().IntVar(&createOpts.LogTail, "log-tail", collector.DefaultLogTailLines,
+		"keep at most this many lines of each container log")
 }
 
 // runCreate collects the cluster and either writes the tarball to
 // opts.Output or uploads it and prints the link to stdout.
 func runCreate(ctx context.Context, opts createOptions, client kube.Client, stdout io.Writer) error {
-	mgr := snapshot.NewManager(client, version)
+	logs := collector.DefaultLogOptions()
+	logs.TailLines = opts.LogTail
+	mgr := snapshot.NewManager(client, version, logs)
 
 	if opts.Output != "" {
 		manifest, err := writeSnapshot(ctx, mgr, opts.Output)

@@ -26,10 +26,11 @@ const (
 )
 
 // Writer stages a snapshot in a temporary directory and then writes it as a
-// gzipped tar in the v1 layout. Call Cleanup when done.
+// gzipped tar in the layout of FormatVersion. Call Cleanup when done.
 type Writer struct {
 	dir    string
 	counts map[KindCount]int
+	logs   []LogFile
 }
 
 func NewWriter() (*Writer, error) {
@@ -59,25 +60,54 @@ func (w *Writer) AddResource(r collector.Resource) error {
 	}
 
 	rel := path.Join("resources", path.Join(segments...)+".json")
-	full := filepath.Join(w.dir, filepath.FromSlash(rel))
-	if _, err := os.Stat(full); err == nil {
-		return fmt.Errorf("%s: collected twice", rel)
-	}
-
 	unstructured.RemoveNestedField(r.Object, "metadata", "managedFields")
 	data, err := json.MarshalIndent(r.Object, "", "  ")
 	if err != nil {
 		return fmt.Errorf("%s: %w", rel, err)
 	}
-	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
-		return err
-	}
-	if err := os.WriteFile(full, data, 0o644); err != nil {
+	if err := w.stage(rel, data); err != nil {
 		return err
 	}
 
 	w.counts[KindCount{Group: group, Version: r.Version, Kind: r.Kind}]++
 	return nil
+}
+
+// AddLog stages one container log at logs/<ns>/<pod>/<container>.log, or
+// <container>.previous.log for the run before a restart. Container names
+// can't contain dots, so the two never clash.
+func (w *Writer) AddLog(l collector.Log) error {
+	for _, s := range []string{l.Namespace, l.Pod, l.Container} {
+		if err := checkSegment(s); err != nil {
+			return fmt.Errorf("log %s/%s %s: %w", l.Namespace, l.Pod, l.Container, err)
+		}
+	}
+	f := LogFile{Namespace: l.Namespace, Pod: l.Pod, Container: l.Container, Previous: l.Previous, Truncated: l.Truncated}
+	if err := w.stage(f.path(), l.Data); err != nil {
+		return err
+	}
+	w.logs = append(w.logs, f)
+	return nil
+}
+
+// Logs returns the staged logs sorted by path.
+func (w *Writer) Logs() []LogFile {
+	out := append([]LogFile{}, w.logs...)
+	sort.Slice(out, func(i, j int) bool { return out[i].path() < out[j].path() })
+	return out
+}
+
+// stage writes data at rel in the staging directory, failing if something
+// is already there.
+func (w *Writer) stage(rel string, data []byte) error {
+	full := filepath.Join(w.dir, filepath.FromSlash(rel))
+	if _, err := os.Stat(full); err == nil {
+		return fmt.Errorf("%s: collected twice", rel)
+	}
+	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(full, data, 0o644)
 }
 
 func checkSegment(s string) error {

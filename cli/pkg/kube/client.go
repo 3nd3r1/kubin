@@ -4,6 +4,7 @@ package kube
 import (
 	"context"
 	"fmt"
+	"io"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,7 +17,8 @@ type Client interface {
 	GetNamespaces(ctx context.Context) ([]corev1.Namespace, error)
 	// GetPods lists pods in namespace, or in all namespaces when it is empty.
 	GetPods(ctx context.Context, namespace string) ([]corev1.Pod, error)
-	GetPodLogs(ctx context.Context, namespace string, podName string) (string, error)
+	// GetPodLogs streams one container's log. The caller closes it.
+	GetPodLogs(ctx context.Context, namespace, pod string, opts corev1.PodLogOptions) (io.ReadCloser, error)
 	// GetEvents lists core/v1 events in namespace, or in all namespaces when
 	// it is empty.
 	GetEvents(ctx context.Context, namespace string) ([]corev1.Event, error)
@@ -56,6 +58,10 @@ func NewKubeClient() (*KubeClient, error) {
 	if err != nil {
 		return nil, fmt.Errorf("load kubeconfig context %q: %w", raw.CurrentContext, err)
 	}
+	// client-go defaults to 5 requests per second, which serialises the
+	// parallel log fetches. The API server's own fairness still applies.
+	config.QPS = 50
+	config.Burst = 100
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -100,11 +106,6 @@ func (k *KubeClient) GetEvents(ctx context.Context, namespace string) ([]corev1.
 	return list.Items, nil
 }
 
-func (k *KubeClient) GetPodLogs(ctx context.Context, namespace string, podName string) (string, error) {
-	req := k.clientset.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{})
-	logs, err := req.DoRaw(ctx)
-	if err != nil {
-		return "", err
-	}
-	return string(logs), nil
+func (k *KubeClient) GetPodLogs(ctx context.Context, namespace, pod string, opts corev1.PodLogOptions) (io.ReadCloser, error) {
+	return k.clientset.CoreV1().Pods(namespace).GetLogs(pod, &opts).Stream(ctx)
 }

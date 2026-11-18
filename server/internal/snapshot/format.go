@@ -14,9 +14,13 @@ import (
 	"github.com/3nd3r1/kubin/server/internal/store"
 )
 
-// FormatVersion is the snapshot format this server reads. See
-// docs/snapshot-format.md.
-const FormatVersion = 1
+// MinFormatVersion and MaxFormatVersion bound the snapshot formats this
+// server reads. See docs/snapshot-format.md. v2 only adds previous logs and
+// the logs section of the manifest to v1, so one reader covers both.
+const (
+	MinFormatVersion = 1
+	MaxFormatVersion = 2
+)
 
 const (
 	manifestName  = "manifest.json"
@@ -44,7 +48,7 @@ type Manifest struct {
 	CreatedAt     time.Time `json:"created_at"`
 }
 
-// archive reads a v1 snapshot entry by entry and enforces the reading rules
+// archive reads a snapshot entry by entry and enforces the reading rules
 // from docs/snapshot-format.md.
 type archive struct {
 	tr          *tar.Reader
@@ -80,8 +84,9 @@ func openArchive(r io.Reader, maxUnpacked int64) (*archive, Manifest, []byte, er
 	if err := json.Unmarshal(raw, &m); err != nil {
 		return nil, Manifest{}, nil, invalid("%s: %v", manifestName, err)
 	}
-	if m.FormatVersion != FormatVersion {
-		return nil, Manifest{}, nil, invalid("unsupported format_version %d, this server reads %d", m.FormatVersion, FormatVersion)
+	if m.FormatVersion < MinFormatVersion || m.FormatVersion > MaxFormatVersion {
+		return nil, Manifest{}, nil, invalid("unsupported format_version %d, this server reads %d to %d",
+			m.FormatVersion, MinFormatVersion, MaxFormatVersion)
 	}
 	return a, m, raw, nil
 }
@@ -176,7 +181,7 @@ func (a *archive) nextEntry() (entry, error) {
 		}
 		return entry{}, nil
 	}
-	return entry{}, invalid("%s: not part of the v1 layout", hdr.Name)
+	return entry{}, invalid("%s: not part of the snapshot layout", hdr.Name)
 }
 
 func checkSegment(s string) error {

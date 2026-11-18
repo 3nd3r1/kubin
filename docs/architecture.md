@@ -32,14 +32,14 @@ A gzipped tar, and the contract between the CLI and the server. Its layout is ve
 manifest.json                                 format version, cluster info, CLI version, counts
 resources/<group>/<version>/<Kind>/<namespace>/<name>.json
 resources/<group>/<version>/<Kind>/_cluster/<name>.json     cluster-scoped kinds
-logs/<namespace>/<pod>/<container>.log
+logs/<namespace>/<pod>/<container>.log        and <container>.previous.log after a restart
 ```
 
 The core group is written as `core`. The full spec is [snapshot-format.md](snapshot-format.md).
 
 ## CLI (`cli/`)
 
-Go, cobra, client-go. `kubin create` uploads to `--server` or `KUBIN_SERVER` and prints the URL. `--output <file>` keeps the tarball instead, for air-gapped use. Collectors implement `collector.Collector` and return objects as `collector.Resource`. `snapshot.Writer` puts them into the tarball layout, and `snapshot.Manager` runs the collectors and writes the manifest.
+Go, cobra, client-go. `kubin create` uploads to `--server` or `KUBIN_SERVER` and prints the URL. `--output <file>` keeps the tarball instead, for air-gapped use. Collectors implement `collector.Collector` and return objects as `collector.Resource`. `collector.LogsCollector` then fetches the logs of the collected pods with a fixed worker pool, keeping the last `--log-tail` lines of each. `snapshot.Writer` puts them into the tarball layout, and `snapshot.Manager` runs the collectors and writes the manifest.
 
 ## Server (`server/`)
 
