@@ -11,7 +11,7 @@ export function Layout() {
                         to="/"
                         className="flex items-center gap-2 font-semibold"
                     >
-                        <img src="/logo.png" alt="" className="size-7" />
+                        <img src="/icon.png" alt="" className="size-7" />
                         kubin
                     </Link>
                     <ThemeToggle />
