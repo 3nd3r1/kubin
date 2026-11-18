@@ -85,7 +85,7 @@ func runCreate(ctx context.Context, opts createOptions, client kube.Client, stdo
 		if err != nil {
 			return err
 		}
-		log.Info("Snapshot written", "file", opts.Output, "cluster", manifest.Cluster.Name, "resources", total(manifest))
+		log.Info(fmt.Sprintf("Wrote %d resources from %s to %s", total(manifest), manifest.Cluster.Name, opts.Output))
 		return nil
 	}
 
@@ -98,7 +98,7 @@ func runCreate(ctx context.Context, opts createOptions, client kube.Client, stdo
 		_ = os.Remove(f.Name())
 	}()
 
-	log.Info("Collecting snapshot...")
+	log.Info("Collecting the cluster...")
 	manifest, err := mgr.Create(ctx, f)
 	if err != nil {
 		return fmt.Errorf("create snapshot: %w", err)
@@ -107,7 +107,7 @@ func runCreate(ctx context.Context, opts createOptions, client kube.Client, stdo
 		return err
 	}
 
-	log.Info("Uploading snapshot...", "server", opts.Server, "cluster", manifest.Cluster.Name, "resources", total(manifest))
+	log.Info(fmt.Sprintf("Uploading %d resources from %s to %s...", total(manifest), manifest.Cluster.Name, opts.Server))
 	res, err := upload.New(opts.Server, "kubin/"+version).File(ctx, f.Name())
 	if err != nil {
 		return err
@@ -129,7 +129,7 @@ func writeSnapshot(ctx context.Context, mgr *snapshot.Manager, path string) (_ s
 			_ = os.Remove(f.Name())
 		}
 	}()
-	log.Info("Collecting snapshot...")
+	log.Info("Collecting the cluster...")
 	manifest, err := mgr.Create(ctx, f)
 	if err != nil {
 		return snapshot.Manifest{}, fmt.Errorf("create snapshot: %w", err)

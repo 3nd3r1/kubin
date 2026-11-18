@@ -1,6 +1,12 @@
+# Kubin
+
+<img src="docs/assets/logo_nobg.png" alt="Kubin logo" width="120">
+
 Kubin turns a crashing pod into a link that shows its status, events, and logs.
 
-<!-- Add the demo recording here after capturing the browser flow. -->
+<!-- Narrated walkthrough goes here: drag the mp4 into the GitHub editor so it plays inline. Script: demo/video-script.md -->
+
+![kubin create prints a link; the page shows the crashing pod and the error in its logs](demo/kubin-demo.gif)
 
 ```sh
 git clone https://github.com/3nd3r1/kubin.git

@@ -51,7 +51,9 @@ echo "Building the Kubin server image..."
 docker build -t kubin:demo "$repo_root"
 
 echo "Starting the kind cluster..."
-kind create cluster --name "$cluster"
+# --wait lets the node lose its not-ready taint first, so the pod does not
+# log a FailedScheduling warning.
+kind create cluster --name "$cluster" --wait 2m
 cluster_created=1
 kind export kubeconfig --name "$cluster" --kubeconfig "$work_dir/kubeconfig"
 export KUBECONFIG="$work_dir/kubeconfig"
@@ -93,7 +95,7 @@ fi
 
 echo "Building the kubin CLI..."
 (cd "$repo_root/cli" && go build -o "$work_dir/kubin" .)
-echo "Uploading the snapshot..."
+echo "Running kubin create..."
 "$work_dir/kubin" create --server "$server"
 
 finished=1
