@@ -1,6 +1,7 @@
 // Package snapshot takes an uploaded snapshot tarball, checks it against the
-// v1 format, keeps the raw tarball in the blob store and indexes every
-// resource in the database.
+// format, keeps the raw tarball in the blob store, indexes every resource in
+// the database and copies the logs into a blob of their own so they can be
+// read without unpacking the tarball.
 package snapshot
 
 import (
@@ -50,6 +51,10 @@ func NewID() string {
 // BlobKey is where a snapshot's raw tarball is kept.
 func BlobKey(id string) string { return "snapshots/" + id + ".tar.gz" }
 
+// LogsBlobKey is where a snapshot's logs are kept, back to back. The logs
+// table says where each one starts.
+func LogsBlobKey(id string) string { return "snapshots/" + id + ".logs.txt" }
+
 // Upload reads a snapshot tarball from r and stores it. It returns the new
 // snapshot's ID. An *InvalidError means the upload was rejected; errors from
 // reading r are returned as they are.
@@ -94,6 +99,7 @@ func (s *Service) Upload(ctx context.Context, r io.Reader) (string, error) {
 		Manifest:      rawManifest,
 		BlobKey:       BlobKey(id),
 		SizeBytes:     size,
+		LogsBlobKey:   LogsBlobKey(id),
 	}
 	tx, err := s.Store.BeginSnapshot(ctx, snap)
 	if err != nil {
@@ -101,6 +107,16 @@ func (s *Service) Upload(ctx context.Context, r io.Reader) (string, error) {
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	logs, err := os.CreateTemp(s.TempDir, "logs-*.txt")
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		_ = logs.Close()
+		_ = os.Remove(logs.Name())
+	}()
+
+	var logsSize int64
 	for {
 		e, err := a.nextEntry()
 		if err == io.EOF {
@@ -109,28 +125,49 @@ func (s *Service) Upload(ctx context.Context, r io.Reader) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		if e.Resource == nil {
-			continue
-		}
-		if err := tx.AddResource(ctx, *e.Resource); err != nil {
-			return "", err
+		switch {
+		case e.Resource != nil:
+			if err := tx.AddResource(ctx, *e.Resource); err != nil {
+				return "", err
+			}
+		case e.Log != nil:
+			n, err := a.copyBody(e, logs)
+			if err != nil {
+				return "", err
+			}
+			if err := tx.AddLog(ctx, store.Log{LogKey: *e.Log, Offset: logsSize, Size: n}); err != nil {
+				return "", err
+			}
+			logsSize += n
 		}
 	}
 
-	// The blob goes in before the rows are committed, so a committed
-	// snapshot always has its tarball.
-	if _, err := f.Seek(0, io.SeekStart); err != nil {
-		return "", err
-	}
-	if err := s.Blobs.Put(ctx, snap.BlobKey, f); err != nil {
-		return "", fmt.Errorf("store tarball: %w", err)
-	}
-	if err := tx.Commit(); err != nil {
-		// Don't leave an orphan blob. Use a fresh context: ctx may be the
-		// reason the commit failed.
+	// The blobs go in before the rows are committed, so a committed
+	// snapshot always has them. Anything stored is removed if a later step
+	// fails, using a fresh context: ctx may be the reason it failed.
+	var stored []string
+	fail := func(err error) (string, error) {
 		delCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 		defer cancel()
-		return "", errors.Join(fmt.Errorf("commit snapshot: %w", err), s.Blobs.Delete(delCtx, snap.BlobKey))
+		for _, key := range stored {
+			err = errors.Join(err, s.Blobs.Delete(delCtx, key))
+		}
+		return "", err
+	}
+	for _, b := range []struct {
+		key, what string
+		f         *os.File
+	}{{snap.BlobKey, "tarball", f}, {snap.LogsBlobKey, "logs", logs}} {
+		if _, err := b.f.Seek(0, io.SeekStart); err != nil {
+			return fail(err)
+		}
+		if err := s.Blobs.Put(ctx, b.key, b.f); err != nil {
+			return fail(fmt.Errorf("store %s: %w", b.what, err))
+		}
+		stored = append(stored, b.key)
+	}
+	if err := tx.Commit(); err != nil {
+		return fail(fmt.Errorf("commit snapshot: %w", err))
 	}
 	return id, nil
 }

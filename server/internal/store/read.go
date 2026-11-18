@@ -12,9 +12,10 @@ func (s *SQL) GetSnapshot(ctx context.Context, id string) (Snapshot, error) {
 	var snap Snapshot
 	var manifest string
 	err := s.db.QueryRowContext(ctx, `
-		SELECT id, uploaded_at, captured_at, format_version, manifest, blob_key, size_bytes
+		SELECT id, uploaded_at, captured_at, format_version, manifest, blob_key, size_bytes, logs_blob_key
 		FROM snapshots WHERE id = $1`, id).
-		Scan(&snap.ID, &snap.UploadedAt, &snap.CapturedAt, &snap.FormatVersion, &manifest, &snap.BlobKey, &snap.SizeBytes)
+		Scan(&snap.ID, &snap.UploadedAt, &snap.CapturedAt, &snap.FormatVersion, &manifest, &snap.BlobKey,
+			&snap.SizeBytes, &snap.LogsBlobKey)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Snapshot{}, fmt.Errorf("snapshot %s: %w", id, ErrNotFound)
 	}
@@ -106,4 +107,15 @@ func (s *SQL) GetResource(ctx context.Context, id string, k Key) (Resource, erro
 		return Resource{}, fmt.Errorf("%s %s/%s: %w", k.Kind, k.Namespace, k.Name, ErrNotFound)
 	}
 	return r, err
+}
+
+func (s *SQL) GetLog(ctx context.Context, id string, k LogKey) (Log, error) {
+	l := Log{LogKey: k}
+	err := s.db.QueryRowContext(ctx, `SELECT byte_offset, byte_size FROM logs
+		WHERE snapshot_id = $1 AND namespace = $2 AND pod = $3 AND container = $4 AND previous = $5`,
+		id, k.Namespace, k.Pod, k.Container, boolInt(k.Previous)).Scan(&l.Offset, &l.Size)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Log{}, fmt.Errorf("log %s/%s %s: %w", k.Namespace, k.Pod, k.Container, ErrNotFound)
+	}
+	return l, err
 }

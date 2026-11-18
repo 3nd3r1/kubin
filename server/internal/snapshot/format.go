@@ -123,10 +123,12 @@ func (a *archive) read(hdr *tar.Header) ([]byte, error) {
 	return buf, nil
 }
 
-// entry is one file after the manifest. Resource is nil for log files, which
-// stay in the blob store and aren't indexed.
+// entry is one file after the manifest: a resource, or a log whose body the
+// caller copies out with copyBody before the next call to nextEntry.
 type entry struct {
 	Resource *store.Resource
+	Log      *store.LogKey
+	name     string
 }
 
 // nextEntry reads and checks the next entry after the manifest.
@@ -172,16 +174,42 @@ func (a *archive) nextEntry() (entry, error) {
 		}}, nil
 
 	case parts[0] == "logs" && len(parts) == 4:
-		if c, ok := strings.CutSuffix(parts[3], ".log"); !ok || checkSegment(c) != nil {
+		c, ok := strings.CutSuffix(parts[3], ".log")
+		if !ok || checkSegment(c) != nil {
 			return entry{}, invalid("%s: log files are <container>.log", hdr.Name)
 		}
-		// Drain it so the size budget covers what was actually read.
-		if _, err := io.Copy(io.Discard, a.tr); err != nil {
-			return entry{}, invalid("%s: %v", hdr.Name, err)
+		// Container names can't contain dots, so the suffix is unambiguous.
+		c, previous := strings.CutSuffix(c, ".previous")
+		if checkSegment(c) != nil {
+			return entry{}, invalid("%s: log files are <container>.log", hdr.Name)
 		}
-		return entry{}, nil
+		return entry{name: hdr.Name, Log: &store.LogKey{
+			Namespace: parts[1], Pod: parts[2], Container: c, Previous: previous,
+		}}, nil
 	}
 	return entry{}, invalid("%s: not part of the snapshot layout", hdr.Name)
+}
+
+// copyBody copies the current entry's body to w. A broken archive is an
+// *InvalidError; a failure to write is returned as it is.
+func (a *archive) copyBody(e entry, w io.Writer) (int64, error) {
+	buf := make([]byte, 32*1024)
+	var n int64
+	for {
+		m, rerr := a.tr.Read(buf)
+		if m > 0 {
+			if _, err := w.Write(buf[:m]); err != nil {
+				return n, err
+			}
+			n += int64(m)
+		}
+		if rerr == io.EOF {
+			return n, nil
+		}
+		if rerr != nil {
+			return n, invalid("%s: %v", e.name, rerr)
+		}
+	}
 }
 
 func checkSegment(s string) error {

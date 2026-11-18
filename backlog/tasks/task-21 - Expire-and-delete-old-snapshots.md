@@ -4,7 +4,7 @@ title: Expire and delete old snapshots
 status: To Do
 assignee: []
 created_date: '2026-11-17T10:05:00Z'
-updated_date: '2026-11-17T10:11:00Z'
+updated_date: '2026-11-18T11:02:00Z'
 labels:
   - server
 milestone: m-3
@@ -26,3 +26,9 @@ Cluster dumps should not live forever, both for cost and because they hold clust
 - [ ] #2 Expired snapshots return 410 and are removed from the database and the blob store by a periodic job inside the server
 - [ ] #3 `kubin delete <url>` removes a snapshot using a delete token returned at upload
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+From TASK-14: a snapshot now has two blobs, snapshots.blob_key (tarball) and snapshots.logs_blob_key (logs, may be empty for old snapshots). Delete both; the logs rows go with ON DELETE CASCADE.
+<!-- SECTION:NOTES:END -->

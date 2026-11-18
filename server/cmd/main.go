@@ -58,6 +58,7 @@ func run() error {
 			SecureHeaders:  cfg.Production(),
 			Snapshots:      &snapshot.Service{Store: db, Blobs: blobs, TempDir: tmpDir},
 			Store:          db,
+			Logs:           blobs,
 			Ready:          db.Ping,
 			PublicURL:      cfg.PublicURL,
 			MaxUploadBytes: cfg.MaxUploadBytes,

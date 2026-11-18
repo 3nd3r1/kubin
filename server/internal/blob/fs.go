@@ -80,6 +80,21 @@ func (s *FS) Open(_ context.Context, key string) (io.ReadCloser, error) {
 	return f, err
 }
 
+func (s *FS) OpenRange(ctx context.Context, key string, offset, length int64) (io.ReadCloser, error) {
+	if offset < 0 || length < 0 {
+		return nil, fmt.Errorf("%s: invalid range %d+%d", key, offset, length)
+	}
+	rc, err := s.Open(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	f := rc.(*os.File)
+	return struct {
+		io.Reader
+		io.Closer
+	}{io.NewSectionReader(f, offset, length), f}, nil
+}
+
 func (s *FS) Delete(_ context.Context, key string) error {
 	p, err := s.path(key)
 	if err != nil {

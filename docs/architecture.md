@@ -21,7 +21,7 @@ The earlier design had seven services plus Kafka, ClickHouse and Redis. Why it c
 2. Collectors read resources and logs. Secret values, env var values and `managedFields` are stripped. The result is a versioned tarball.
 3. The CLI uploads it. The server validates it, stores the raw tarball in the blob store and writes one row per resource to the database.
 4. The server answers with a random, unguessable ID. The CLI prints the link.
-5. The browser loads the UI from the same server. The UI calls the API for resource lists, single objects and logs. Logs are streamed from the blob store.
+5. The browser loads the UI from the same server. The UI calls the API for resource lists, single objects and logs. Logs are streamed from the blob store: at upload the server copies every log out of the tarball into one blob per snapshot and records where each starts, so serving a log is one ranged read.
 6. Snapshots expire and a job inside the server deletes them.
 
 ## Snapshot
@@ -49,8 +49,8 @@ One Go binary with chi. The parts the old design made into services are packages
 |---|---|
 | `api` | HTTP handlers, validation |
 | `snapshot` | upload: validate the tarball, store it, index it |
-| `store` | snapshots and resource index. SQLite by default, Postgres by config |
-| `blob` | raw tarballs. Local directory by default, S3 by config |
+| `store` | snapshots, resource index and where each log sits in the logs blob. SQLite by default, Postgres by config |
+| `blob` | raw tarballs and logs blobs, read whole or by range. Local directory by default, S3 by config |
 | `web` | the built UI, embedded with go:embed |
 
 ### API
@@ -60,7 +60,7 @@ POST /api/v1/snapshots                                 upload tarball, returns {
 GET  /api/v1/snapshots/{id}                            manifest and counts
 GET  /api/v1/snapshots/{id}/resources?kind=&namespace= list
 GET  /api/v1/snapshots/{id}/resources/{kind}/{ns}/{name}
-GET  /api/v1/snapshots/{id}/logs/{ns}/{pod}/{container}
+GET  /api/v1/snapshots/{id}/logs/{ns}/{pod}/{container}?previous=true&q=   text/plain, q filters lines
 GET  /healthz, /readyz
 GET  /*                                                the UI
 ```

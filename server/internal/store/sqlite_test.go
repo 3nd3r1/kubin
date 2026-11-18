@@ -46,8 +46,12 @@ func TestMigrationsRunOnceOnReopen(t *testing.T) {
 		t.Fatalf("reopen: %v", err)
 	}
 	defer func() { _ = s2.Close() }()
-	if n := count(t, s2, `SELECT COUNT(*) FROM schema_migrations`); n != 1 {
-		t.Fatalf("schema_migrations has %d rows, want 1", n)
+	files, err := migrations.ReadDir("migrations/sqlite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := count(t, s2, `SELECT COUNT(*) FROM schema_migrations`); n != len(files) {
+		t.Fatalf("schema_migrations has %d rows, want %d", n, len(files))
 	}
 }
 
@@ -196,5 +200,72 @@ func TestReads(t *testing.T) {
 	}
 	if _, err := s.GetResource(ctx, "snap", Key{Kind: "Pod", Namespace: "default", Name: "zz"}); !errors.Is(err, ErrNotFound) {
 		t.Errorf("GetResource(missing) = %v, want ErrNotFound", err)
+	}
+}
+
+func TestLogs(t *testing.T) {
+	ctx := context.Background()
+	s, _ := openTest(t)
+
+	snap := testSnapshot("withlogs")
+	snap.LogsBlobKey = "snapshots/withlogs.logs.txt"
+	tx, err := s.BeginSnapshot(ctx, snap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	current := Log{LogKey: LogKey{Namespace: "prod", Pod: "web", Container: "app"}, Offset: 0, Size: 10}
+	previous := Log{LogKey: LogKey{Namespace: "prod", Pod: "web", Container: "app", Previous: true}, Offset: 10, Size: 5}
+	for _, l := range []Log{current, previous} {
+		if err := tx.AddLog(ctx, l); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := tx.AddLog(ctx, current); err == nil {
+		t.Error("adding the same log twice succeeded")
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := s.GetSnapshot(ctx, "withlogs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.LogsBlobKey != snap.LogsBlobKey {
+		t.Errorf("LogsBlobKey %q, want %q", got.LogsBlobKey, snap.LogsBlobKey)
+	}
+	for _, want := range []Log{current, previous} {
+		l, err := s.GetLog(ctx, "withlogs", want.LogKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if l != want {
+			t.Errorf("GetLog: got %+v, want %+v", l, want)
+		}
+	}
+	for _, k := range []LogKey{
+		{Namespace: "prod", Pod: "web", Container: "other"},
+		{Namespace: "prod", Pod: "api", Container: "app"},
+	} {
+		if _, err := s.GetLog(ctx, "withlogs", k); !errors.Is(err, ErrNotFound) {
+			t.Errorf("GetLog %+v: got %v, want ErrNotFound", k, err)
+		}
+	}
+	if _, err := s.GetLog(ctx, "missing", current.LogKey); !errors.Is(err, ErrNotFound) {
+		t.Errorf("GetLog on a missing snapshot: got %v, want ErrNotFound", err)
+	}
+
+	tx, err = s.BeginSnapshot(ctx, testSnapshot("dropped"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.AddLog(ctx, current); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Rollback(); err != nil {
+		t.Fatal(err)
+	}
+	if n := count(t, s, `SELECT COUNT(*) FROM logs WHERE snapshot_id = $1`, "dropped"); n != 0 {
+		t.Errorf("rolled back snapshot left %d log rows", n)
 	}
 }

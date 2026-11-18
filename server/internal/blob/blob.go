@@ -18,6 +18,9 @@ type Store interface {
 	// fails part way leaves nothing behind.
 	Put(ctx context.Context, key string, r io.Reader) error
 	Open(ctx context.Context, key string) (io.ReadCloser, error)
+	// OpenRange reads length bytes of key starting at offset. Reading past
+	// the end of the blob stops at the end.
+	OpenRange(ctx context.Context, key string, offset, length int64) (io.ReadCloser, error)
 	// Delete removes key. Deleting a missing key is not an error.
 	Delete(ctx context.Context, key string) error
 }

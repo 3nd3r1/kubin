@@ -22,6 +22,7 @@ type Reader interface {
 	CountResources(ctx context.Context, id string) ([]store.KindCount, error)
 	ListResources(ctx context.Context, id string, f store.Filter) ([]store.Resource, error)
 	GetResource(ctx context.Context, id string, k store.Key) (store.Resource, error)
+	GetLog(ctx context.Context, id string, k store.LogKey) (store.Log, error)
 }
 
 type kindCount struct {

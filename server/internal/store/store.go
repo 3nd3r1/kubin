@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// ErrNotFound is returned when a snapshot or resource doesn't exist.
+// ErrNotFound is returned when a snapshot, resource or log doesn't exist.
 var ErrNotFound = errors.New("not found")
 
 // Store is the database behind the server.
@@ -28,6 +28,8 @@ type Store interface {
 	// GetResource returns one resource. When the key's Group is empty and
 	// several groups have the kind, the first by group and version wins.
 	GetResource(ctx context.Context, id string, k Key) (Resource, error)
+	// GetLog says where one container log sits in the snapshot's logs blob.
+	GetLog(ctx context.Context, id string, k LogKey) (Log, error)
 
 	Ping(ctx context.Context) error
 	Close() error
@@ -36,6 +38,7 @@ type Store interface {
 // SnapshotTx writes one snapshot and its resources atomically.
 type SnapshotTx interface {
 	AddResource(ctx context.Context, r Resource) error
+	AddLog(ctx context.Context, l Log) error
 	Commit() error
 	// Rollback discards the snapshot. It is safe to call after Commit.
 	Rollback() error
@@ -49,6 +52,9 @@ type Snapshot struct {
 	Manifest      []byte // manifest.json as uploaded
 	BlobKey       string
 	SizeBytes     int64 // compressed tarball size
+	// LogsBlobKey holds every log of the snapshot back to back. Empty for
+	// snapshots stored before logs were served.
+	LogsBlobKey string
 }
 
 // Resource is one object from a snapshot. Namespace is empty for
@@ -86,4 +92,20 @@ type Key struct {
 	Kind      string
 	Namespace string
 	Name      string
+}
+
+// LogKey names one container log. Previous selects the run before the last
+// restart.
+type LogKey struct {
+	Namespace string
+	Pod       string
+	Container string
+	Previous  bool
+}
+
+// Log is where one container log sits in the snapshot's logs blob.
+type Log struct {
+	LogKey
+	Offset int64
+	Size   int64
 }

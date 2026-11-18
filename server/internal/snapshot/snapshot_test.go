@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"io"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -63,6 +64,9 @@ func (e env) assertEmpty(t *testing.T) {
 	}
 	if n := e.count(t, "resources"); n != 0 {
 		t.Errorf("rejected upload left %d resource rows", n)
+	}
+	if n := e.count(t, "logs"); n != 0 {
+		t.Errorf("rejected upload left %d log rows", n)
 	}
 	files, _ := filepath.Glob(filepath.Join(e.blobDir, "snapshots", "*"))
 	if len(files) != 0 {
@@ -183,5 +187,55 @@ func TestUploadReadsFormatV1(t *testing.T) {
 	}
 	if version != 1 {
 		t.Errorf("format_version stored as %d, want 1", version)
+	}
+}
+
+func TestUploadStoresLogs(t *testing.T) {
+	e := newService(t)
+	id, err := e.svc.Upload(context.Background(), bytes.NewReader(snapshottest.Fixture(t)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	snap, err := e.svc.Store.GetSnapshot(context.Background(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snap.LogsBlobKey != LogsBlobKey(id) {
+		t.Fatalf("LogsBlobKey %q, want %q", snap.LogsBlobKey, LogsBlobKey(id))
+	}
+	for _, tt := range []struct {
+		previous bool
+		want     string
+	}{{false, "started\n"}, {true, "panic: boom\n"}} {
+		l, err := e.svc.Store.GetLog(context.Background(), id, store.LogKey{
+			Namespace: "default", Pod: "web-0", Container: "nginx", Previous: tt.previous,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		rc, err := e.svc.Blobs.OpenRange(context.Background(), snap.LogsBlobKey, l.Offset, l.Size)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, _ := io.ReadAll(rc)
+		_ = rc.Close()
+		if string(got) != tt.want {
+			t.Errorf("previous=%v: got %q, want %q", tt.previous, got, tt.want)
+		}
+	}
+}
+
+func TestUploadRejectsBadLogNames(t *testing.T) {
+	manifest := F{Name: "manifest.json", Body: snapshottest.Manifest}
+	for _, name := range []string{"logs/a/b/.previous.log", "logs/a/b/c.txt", "logs/a/b/c/d.log"} {
+		t.Run(name, func(t *testing.T) {
+			e := newService(t)
+			_, err := e.svc.Upload(context.Background(), bytes.NewReader(snapshottest.Tarball(t, manifest, F{Name: name, Body: "x"})))
+			var inv *InvalidError
+			if !errors.As(err, &inv) {
+				t.Fatalf("got %v, want an InvalidError", err)
+			}
+			e.assertEmpty(t)
+		})
 	}
 }

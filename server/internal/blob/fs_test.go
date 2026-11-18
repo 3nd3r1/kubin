@@ -70,3 +70,40 @@ func TestFSRejectsUnsafeKeys(t *testing.T) {
 type errReader struct{}
 
 func (errReader) Read([]byte) (int, error) { return 0, errors.New("boom") }
+
+func TestFSOpenRange(t *testing.T) {
+	ctx := context.Background()
+	s, err := NewFS(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Put(ctx, "snapshots/abc.logs.txt", strings.NewReader("0123456789")); err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range []struct {
+		off, n int64
+		want   string
+	}{
+		{0, 10, "0123456789"},
+		{3, 4, "3456"},
+		{8, 10, "89"},
+		{10, 5, ""},
+		{4, 0, ""},
+	} {
+		rc, err := s.OpenRange(ctx, "snapshots/abc.logs.txt", tt.off, tt.n)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := io.ReadAll(rc)
+		_ = rc.Close()
+		if err != nil || string(got) != tt.want {
+			t.Errorf("OpenRange(%d, %d): got %q %v, want %q", tt.off, tt.n, got, err, tt.want)
+		}
+	}
+	if _, err := s.OpenRange(ctx, "snapshots/missing", 0, 1); !errors.Is(err, ErrNotFound) {
+		t.Errorf("missing blob: got %v, want ErrNotFound", err)
+	}
+	if _, err := s.OpenRange(ctx, "snapshots/abc.logs.txt", -1, 1); err == nil {
+		t.Error("negative offset accepted")
+	}
+}

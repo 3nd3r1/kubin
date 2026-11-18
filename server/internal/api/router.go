@@ -19,6 +19,7 @@ type Options struct {
 
 	Snapshots Uploader
 	Store     Reader
+	Logs      LogBlobs
 	// Ready reports whether the database can be used. Nil means always ready.
 	Ready func(context.Context) error
 	// PublicURL is the base for snapshot links. Empty means taken from the
@@ -53,6 +54,7 @@ func NewRouter(opts Options) http.Handler {
 		r.Get("/snapshots/{id}", h.getSnapshot)
 		r.Get("/snapshots/{id}/resources", h.listResources)
 		r.Get("/snapshots/{id}/resources/{kind}/{ns}/{name}", h.getResource)
+		r.Get("/snapshots/{id}/logs/{ns}/{pod}/{container}", h.getLog)
 	})
 	// Unknown API paths are JSON 404s, never the UI.
 	r.Handle("/api", http.HandlerFunc(apiNotFound))

@@ -47,6 +47,7 @@ func newUploadServer(t *testing.T, publicURL string, maxUpload int64) testServer
 		Log:            slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Snapshots:      &snapshot.Service{Store: st, Blobs: blobs, TempDir: t.TempDir()},
 		Store:          st,
+		Logs:           blobs,
 		Ready:          st.Ping,
 		PublicURL:      publicURL,
 		MaxUploadBytes: maxUpload,

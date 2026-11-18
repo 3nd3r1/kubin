@@ -95,10 +95,10 @@ func (s *SQL) BeginSnapshot(ctx context.Context, snap Snapshot) (SnapshotTx, err
 		return nil, err
 	}
 	_, err = tx.ExecContext(ctx, `
-		INSERT INTO snapshots (id, uploaded_at, captured_at, format_version, manifest, blob_key, size_bytes)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		INSERT INTO snapshots (id, uploaded_at, captured_at, format_version, manifest, blob_key, size_bytes, logs_blob_key)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		snap.ID, snap.UploadedAt.UTC(), snap.CapturedAt.UTC(), snap.FormatVersion,
-		string(snap.Manifest), snap.BlobKey, snap.SizeBytes)
+		string(snap.Manifest), snap.BlobKey, snap.SizeBytes, snap.LogsBlobKey)
 	if err != nil {
 		_ = tx.Rollback()
 		return nil, fmt.Errorf("insert snapshot: %w", err)
@@ -110,13 +110,38 @@ func (s *SQL) BeginSnapshot(ctx context.Context, snap Snapshot) (SnapshotTx, err
 		_ = tx.Rollback()
 		return nil, err
 	}
-	return &sqlSnapshotTx{tx: tx, insert: insert, id: snap.ID}, nil
+	insertLog, err := tx.PrepareContext(ctx, `
+		INSERT INTO logs (snapshot_id, namespace, pod, container, previous, byte_offset, byte_size)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`)
+	if err != nil {
+		_ = insert.Close()
+		_ = tx.Rollback()
+		return nil, err
+	}
+	return &sqlSnapshotTx{tx: tx, insert: insert, insertLog: insertLog, id: snap.ID}, nil
 }
 
 type sqlSnapshotTx struct {
-	tx     *sql.Tx
-	insert *sql.Stmt
-	id     string
+	tx        *sql.Tx
+	insert    *sql.Stmt
+	insertLog *sql.Stmt
+	id        string
+}
+
+func (t *sqlSnapshotTx) AddLog(ctx context.Context, l Log) error {
+	_, err := t.insertLog.ExecContext(ctx, t.id, l.Namespace, l.Pod, l.Container, boolInt(l.Previous), l.Offset, l.Size)
+	if err != nil {
+		return fmt.Errorf("insert log %s/%s %s: %w", l.Namespace, l.Pod, l.Container, err)
+	}
+	return nil
+}
+
+// boolInt stores booleans as 0 and 1, which every dialect reads the same.
+func boolInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 func (t *sqlSnapshotTx) AddResource(ctx context.Context, r Resource) error {
@@ -129,11 +154,13 @@ func (t *sqlSnapshotTx) AddResource(ctx context.Context, r Resource) error {
 
 func (t *sqlSnapshotTx) Commit() error {
 	_ = t.insert.Close()
+	_ = t.insertLog.Close()
 	return t.tx.Commit()
 }
 
 func (t *sqlSnapshotTx) Rollback() error {
 	_ = t.insert.Close()
+	_ = t.insertLog.Close()
 	if err := t.tx.Rollback(); err != nil && err != sql.ErrTxDone {
 		return err
 	}
