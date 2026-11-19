@@ -17,6 +17,7 @@ pkgs.mkShell {
     kind
     kubernetes-helm
     skaffold
+    k9s
   ];
 
   # The pinned backlog CLI (tools/bin/backlog).

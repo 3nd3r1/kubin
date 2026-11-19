@@ -1,9 +1,11 @@
 ---
 id: TASK-37
 title: Add k9s to the nix shell
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@claude'
 created_date: '2026-11-19T14:45:00Z'
+updated_date: '2026-11-19T15:07:00Z'
 labels:
   - chore
   - tier:1
@@ -35,11 +37,23 @@ The new m-0 demo (user, 2026-11-19) opens on k9s showing the broken checkout app
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `nix-shell --run "k9s version"` prints a k9s version
-- [ ] #2 The diff touches only `shell.nix` and, if it lists the tools, `docs/development.md`
+- [x] #1 `nix-shell --run "k9s version"` prints a k9s version
+- [x] #2 The diff touches only `shell.nix` and, if it lists the tools, `docs/development.md`
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 `nix-shell --run "k9s version && kind version && kubectl version --client"` succeeds
+- [x] #1 `nix-shell --run "k9s version && kind version && kubectl version --client"` succeeds
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Added k9s to buildInputs in shell.nix. docs/development.md does not list the shell tools, so it is unchanged. Checks: nix-shell --run 'k9s version && kind version && kubectl version --client' passed (k9s v0.51.0, kind v0.33.0, kubectl v1.37.2).
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added k9s to the buildInputs of shell.nix under the local cluster tools. k9s 0.51.0 now comes from nix-shell. The diff touches only shell.nix; docs/development.md does not list the shell tools, so it was left alone. Verified with nix-shell --run 'k9s version && kind version && kubectl version --client', which succeeded.
+<!-- SECTION:FINAL_SUMMARY:END -->
