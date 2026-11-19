@@ -1,11 +1,11 @@
 ---
 id: TASK-31
-title: Run tasks through tiered agents from .agents/
-status: In Progress
+title: Run tasks as subagents from one Claude session
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-11-19T10:26:00Z'
-updated_date: '2026-11-19T11:19:00Z'
+updated_date: '2026-11-19T11:51:00Z'
 labels:
   - chore
 dependencies: []
@@ -16,17 +16,14 @@ ordinal: 31000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Every task runs on Opus 5.5, which wastes tokens on small work and carries old context between tasks (user, 2026-11-19). The user approved a workflow where Opus plans and tiers tasks, a script runs each task in a fresh headless Claude session on the model its tier locks, and Opus reviews only risky changes. Design: https://claude.ai/artifact/5UNZGZ5dQvafSGWKtkjrV2. Keep it generic in .agents/ so it can be copied to other repos; only .agents/config and the CLAUDE.md section are kubin's.
+decision-6's .agents/run script, make targets and Run column were too complicated, and runs gave no view of what was happening (user, 2026-11-19). decision-7 replaces it: one Claude session orchestrates, and each task runs in a fresh subagent whose model and effort its tier label picks.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [x] #1 .agents/config maps tier:1-4, planner and reviewer to full model IDs and effort, and lists the paths that always get a review
-- [x] #2 .agents/run runs one task (TASK-N or --next) headless on its tier, checks Done, ticked AC and the repo checks, retries once a tier up, and stops
-- [ ] #3 .agents/run --plan <milestone> runs the planner, which turns drafts into tasks and gives every task in the milestone a tier label
-- [x] #4 Changes in review paths or tier 4 go through an Opus review whose findings go back to the worker once
-- [x] #5 Backlog has a Blocked status, CLAUDE.md points at .agents/README.md, and the workflow is an accepted decision
-- [x] #6 --dry-run shows the task, model, effort and review choice without launching anything
+- [x] #1 .claude/agents has worker-tier1 to worker-tier4 and planner, each with a fixed model and effort
+- [x] #2 .agents/, the agent make targets and the Run status are gone
+- [x] #3 CLAUDE.md tells the orchestrator how to continue, check, retry and stop, and decision-7 is accepted with decision-6 superseded
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -45,4 +42,12 @@ Claude, 2026-11-19: added .agents/ (config, run, prompts/worker|reviewer|planner
 Tested in a throwaway clone with a stub claude (CLAUDE_BIN): tier 2 stopping short then passing on tier 3; a review path change reviewed, findings sent back once, passed on re-review; a Blocked task exits 3 with the worker's comment; checks failing on tier 1 and tier 2 exits 1. shellcheck passes. A real 'claude -p --model claude-haiku-5-5 --effort low --permission-mode dontAsk --allowedTools Read,Grep,Glob' with a stdin prompt answered as expected. Not yet run for real: a worker or planner session. AC #3 waits on the first real --plan run.
 
 Claude, 2026-11-19: added make board|next|task|plan|usage. make board runs backlog browser plus .agents/run --watch: a card dragged to the new Run status gets done, one at a time; a card the script refuses goes to Blocked with the reason as a comment. Sessions use --output-format json; each prints tokens, turns, seconds and API-equivalent dollars and appends to .agents/logs/usage.tsv. Changes under backlog/ no longer count as a dirty tree, since moving a card edits its file. Tested watch in the clone with the JSON stub: an untiered card went to Blocked, a tier 2 card ran, was reviewed and committed, make usage showed both sessions.
+
+Claude, 2026-11-19: replaced the script with subagents (decision-7). The m-2 plan from the script's planner run (commit 139d6d5) stays. The reviewer is dropped. Tier 4 plan approval by the user takes its place, and the planner tiers changes to collectors or redaction as tier 4.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Replaced .agents/run with subagents run from one Claude session (decision-7, superseding decision-6). .claude/agents has worker-tier1 to worker-tier4 (haiku low, sonnet low, sonnet medium, opus medium) and planner (opus high). Tier 4 workers plan first and wait for the user's approval. CLAUDE.md says how the orchestrator continues, checks, retries and stops. Removed .agents/, the board/next/task/plan/usage make targets and the Run status. Verified that a headless session lists all five agents. Not yet tried on a real task.
+<!-- SECTION:FINAL_SUMMARY:END -->

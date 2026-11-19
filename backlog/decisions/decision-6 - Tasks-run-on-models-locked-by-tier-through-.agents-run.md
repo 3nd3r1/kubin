@@ -2,7 +2,7 @@
 id: decision-6
 title: Tasks run on models locked by tier, through .agents/run
 date: '2026-11-19T10:30:00Z'
-status: accepted
+status: superseded by decision-7
 ---
 ## Context
 
