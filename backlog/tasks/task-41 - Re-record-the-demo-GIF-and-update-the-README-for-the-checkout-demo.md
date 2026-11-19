@@ -1,10 +1,11 @@
 ---
 id: TASK-41
 title: Re-record the demo GIF and update the README for the checkout demo
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@claude'
 created_date: '2026-11-19T14:46:00Z'
-updated_date: '2026-11-19T14:50:00Z'
+updated_date: '2026-11-19T15:11:00Z'
 labels:
   - docs
   - tier:3
@@ -48,15 +49,21 @@ The README's GIF and opening sentence still show the crashing `payment-api` pod.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `demo/kubin-demo.gif` shows, in order: the terminal with `kubin create` and its link, the overview with problems first, the api pod log with `cannot connect to postgres at db:5432`, and the kind sidebar
-- [ ] #2 The GIF is 880 px wide and under 1 MB (`nix-shell -p ffmpeg --run "ffprobe -v error -show_entries stream=width -of csv=p=0 demo/kubin-demo.gif"` and `du -h demo/kubin-demo.gif`)
-- [ ] #3 The README's opening sentence and the GIF's alt text tell the new story, the three reproduction commands are unchanged, and the paragraph below them mentions `demo/setup.sh` for running `kubin create` yourself
-- [ ] #4 "What works" and "What does not" are true today: no "shows only pods" claim, nothing the demo or code doesn't show, and `grep -n "payment-api\|crashing pod" README.md` finds nothing
-- [ ] #5 The narrated-video placeholder comment at the top of the README is still there
+- [x] #1 `demo/kubin-demo.gif` shows, in order: the terminal with `kubin create` and its link, the overview with problems first, the api pod log with `cannot connect to postgres at db:5432`, and the kind sidebar
+- [x] #2 The GIF is 880 px wide and under 1 MB (`nix-shell -p ffmpeg --run "ffprobe -v error -show_entries stream=width -of csv=p=0 demo/kubin-demo.gif"` and `du -h demo/kubin-demo.gif`)
+- [x] #3 The README's opening sentence and the GIF's alt text tell the new story, the three reproduction commands are unchanged, and the paragraph below them mentions `demo/setup.sh` for running `kubin create` yourself
+- [x] #4 "What works" and "What does not" are true today: no "shows only pods" claim, nothing the demo or code doesn't show, and `grep -n "payment-api\|crashing pod" README.md` finds nothing
+- [x] #5 The narrated-video placeholder comment at the top of the README is still there
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 Ran `./demo/run.sh` from a clean state to record, and tore it down afterwards (`docker rm -f kubin-demo; kind delete cluster --name kubin-demo`)
-- [ ] #2 The task's commits change only `README.md` and `demo/kubin-demo.gif` (check with `git log --stat`)
+- [x] #1 Ran `./demo/run.sh` from a clean state to record, and tore it down afterwards (`docker rm -f kubin-demo; kind delete cluster --name kubin-demo`)
+- [x] #2 The task's commits change only `README.md` and `demo/kubin-demo.gif` (check with `git log --stat`)
 <!-- DOD:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Re-recorded demo/kubin-demo.gif (880x570, 148K): terminal with kubin create and link, overview problems first, api pod log, kind sidebar. Built from headless chromium screenshots and ffmpeg after a clean ./demo/run.sh; demo torn down. README opener, alt text, setup.sh paragraph, What works / What does not updated; placeholder comment kept.
+<!-- SECTION:FINAL_SUMMARY:END -->
