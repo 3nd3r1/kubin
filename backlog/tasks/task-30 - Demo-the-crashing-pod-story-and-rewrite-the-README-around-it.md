@@ -1,11 +1,11 @@
 ---
 id: TASK-30
 title: Demo the crashing-pod story and rewrite the README around it
-status: In Progress
+status: Done
 assignee:
   - '@human'
 created_date: '2026-11-17T14:08:00Z'
-updated_date: '2026-11-19T14:54:00Z'
+updated_date: '2026-11-19T14:57:00Z'
 labels:
   - docs
 milestone: m-0
@@ -30,8 +30,7 @@ The README describes kubin but does not show why anyone would use it (user, 2026
 - [x] #2 A recording (GIF or short video) of the story, from kubin create to seeing the error in the logs, is in the repo or linked from it
 - [x] #3 The README opens with one sentence, the recording, and the three commands to reproduce it, above everything else
 - [x] #4 The README says what works today and what does not, with no claims beyond what the demo shows
-- [ ] #5 A narrated video by the user, with a face bubble, sits at the top of the README above the GIF
-- [x] #6 A script for the narrated video is in demo/
+- [x] #5 A script for the narrated video is in demo/
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -59,3 +58,9 @@ Claude ran demo/run.sh end to end on 2026-11-18 and fixed four bugs: the pod com
 
 Claude, 2026-11-18: kubin create now prints plain stderr lines ("Collecting the cluster...", "Uploading N resources from C to S...") instead of zap JSON; zap is gone from the CLI. run.sh waits for the node (kind --wait 2m), so the snapshot no longer carries a FailedScheduling warning. Recorded demo/kubin-demo.gif (180 KB, about 11s): a terminal card with the link, the snapshot page, the pod's logs and the previous run. To re-record: run demo/run.sh, take full-size browser screenshots of the same four views, crop to the content column and join them with ffmpeg (palettegen, 10 fps, 880 px wide). Restored the Kubin title and logo that a0d85af dropped. Wrote demo/video-script.md. AC #5 waits on the user's narrated video.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Demo (demo/run.sh, crashing-pod.yaml), GIF (demo/kubin-demo.gif), README rewrite and the video script (demo/video-script.md) are done. The narrated face-bubble video moved to its own human task.
+<!-- SECTION:FINAL_SUMMARY:END -->
