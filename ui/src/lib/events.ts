@@ -12,7 +12,7 @@ export type ResourceEvent = {
 };
 
 /** When an event last happened, from whichever field its API version set. */
-function lastSeen(e: Event): string {
+export function lastSeen(e: Event): string {
     return (
         e.series?.lastObservedTime ||
         e.lastTimestamp ||

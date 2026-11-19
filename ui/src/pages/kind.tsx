@@ -3,11 +3,13 @@ import { useMemo } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 
 import { listResources } from "@/lib/api";
-import type { Pod } from "@/lib/k8s";
+import { columnsFor, problem, sortObjects } from "@/lib/columns";
+import type { AnyObject, Pod } from "@/lib/k8s";
 import { resolveSegment } from "@/lib/kinds";
 import { age, summarize } from "@/lib/pods";
 import { nsParam, resourcePath, useSnapshot } from "@/lib/snapshot";
 import { useFetch } from "@/lib/use-fetch";
+import { cn } from "@/lib/utils";
 
 import { Empty, LoadError, Loading } from "@/components/common/states";
 
@@ -24,7 +26,7 @@ export function KindPage() {
     return <KindTable key={resource} segment={resource} {...found} />;
 }
 
-type ObjectLike = { metadata?: { creationTimestamp?: string } };
+type ObjectLike = AnyObject;
 
 function KindTable({
     segment,
@@ -82,7 +84,8 @@ function KindTable({
                 />
             ) : (
                 <GenericTable
-                    rows={items}
+                    kind={kind}
+                    rows={sortObjects(kind, items)}
                     created={created}
                     snapshotId={snapshot.id}
                     segment={segment}
@@ -98,16 +101,19 @@ function KindTable({
 function GenericTable({
     snapshotId,
     segment,
+    kind,
     rows,
     created,
     namespaced,
 }: {
+    kind: string;
     snapshotId: string;
     segment: string;
     rows: { namespace: string; name: string; object: ObjectLike }[];
     created: string;
     namespaced: boolean;
 }) {
+    const columns = columnsFor(kind);
     return (
         <div className="overflow-x-auto rounded-lg border">
             <table className="w-full text-sm">
@@ -117,38 +123,65 @@ function GenericTable({
                         {namespaced && (
                             <th className="px-3 py-2 font-medium">Namespace</th>
                         )}
+                        {columns.map((col) => (
+                            <th
+                                key={col.header}
+                                className="px-3 py-2 font-medium"
+                            >
+                                {col.header}
+                            </th>
+                        ))}
                         <th className="px-3 py-2 text-right font-medium">
                             Age
                         </th>
                     </tr>
                 </thead>
                 <tbody>
-                    {rows.map((r) => (
-                        <tr
-                            key={`${r.namespace}/${r.name}`}
-                            className="border-t"
-                        >
-                            <td className="px-3 py-2 font-mono">
-                                <Link
-                                    to={resourcePath(snapshotId, segment, r)}
-                                    className="hover:underline"
-                                >
-                                    {r.name}
-                                </Link>
-                            </td>
-                            {namespaced && (
-                                <td className="text-muted-foreground px-3 py-2 font-mono">
-                                    {r.namespace}
-                                </td>
-                            )}
-                            <td className="text-muted-foreground px-3 py-2 text-right tabular-nums">
-                                {age(
-                                    r.object.metadata?.creationTimestamp,
-                                    created
+                    {rows.map((r, i) => {
+                        const p = problem(kind, r.object);
+                        return (
+                            <tr
+                                key={`${r.namespace}/${r.name}/${i}`}
+                                className={cn(
+                                    "border-t",
+                                    p === "error" && "bg-red-500/5",
+                                    p === "warning" && "bg-amber-500/5"
                                 )}
-                            </td>
-                        </tr>
-                    ))}
+                            >
+                                <td className="px-3 py-2 font-mono">
+                                    <Link
+                                        to={resourcePath(
+                                            snapshotId,
+                                            segment,
+                                            r
+                                        )}
+                                        className="hover:underline"
+                                    >
+                                        {r.name}
+                                    </Link>
+                                </td>
+                                {namespaced && (
+                                    <td className="text-muted-foreground px-3 py-2 font-mono">
+                                        {r.namespace}
+                                    </td>
+                                )}
+                                {columns.map((col) => (
+                                    <td
+                                        key={col.header}
+                                        className="px-3 py-2 tabular-nums"
+                                    >
+                                        {col.cell(r.object, created)}
+                                    </td>
+                                ))}
+                                <td className="text-muted-foreground px-3 py-2 text-right tabular-nums">
+                                    {age(
+                                        r.object.metadata?.creationTimestamp,
+                                        created
+                                    )}
+                                </td>
+                            </tr>
+                        );
+                    })}
                 </tbody>
             </table>
         </div>

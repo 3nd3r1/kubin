@@ -1,10 +1,11 @@
 ---
 id: TASK-32
 title: kubectl columns and problem flags in each kind's table
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@claude'
 created_date: '2026-11-19T11:41:00Z'
-updated_date: '2026-11-19T11:42:00Z'
+updated_date: '2026-11-19T12:22:00Z'
 labels:
   - ui
   - tier:3
@@ -72,14 +73,20 @@ Problems: workloads (Deployment, StatefulSet, DaemonSet, ReplicaSet) with fewer 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Each kind in the table in the description shows its kubectl columns, built by functions in `ui/src/lib/columns.ts`
-- [ ] #2 `ui/src/lib/columns.test.ts` covers every kind, including an object without `status` that renders `<none>` or `0`, never `undefined` or `NaN`
-- [ ] #3 Ages, LAST SEEN, LAST SCHEDULE and DURATION are computed against capture time, with a test
-- [ ] #4 An exported `problem(kind, object)` flags workloads with fewer ready than desired, Nodes not Ready, failed Jobs and PVCs not Bound, is tested, and flagged rows are tinted like problem pods
+- [x] #1 Each kind in the table in the description shows its kubectl columns, built by functions in `ui/src/lib/columns.ts`
+- [x] #2 `ui/src/lib/columns.test.ts` covers every kind, including an object without `status` that renders `<none>` or `0`, never `undefined` or `NaN`
+- [x] #3 Ages, LAST SEEN, LAST SCHEDULE and DURATION are computed against capture time, with a test
+- [x] #4 An exported `problem(kind, object)` flags workloads with fewer ready than desired, Nodes not Ready, failed Jobs and PVCs not Bound, is tested, and flagged rows are tinted like problem pods
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 `nix-shell --run 'cd ui && make lint && make typecheck && make test && make build'` passes
-- [ ] #2 The task's commits change nothing under `server/`, `cli/` or `docs/snapshot-format.md` (check with `git log --stat`)
+- [x] #1 `nix-shell --run 'cd ui && make lint && make typecheck && make test && make build'` passes
+- [x] #2 The task's commits change nothing under `server/`, `cli/` or `docs/snapshot-format.md` (check with `git log --stat`)
 <!-- DOD:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added ui/src/lib/columns.ts (columnsFor, problem, sortObjects) with kubectl columns for all 15 kinds, tests in columns.test.ts, AnyObject type in k8s.ts, exported lastSeen from events.ts. kind.tsx renders the columns, tints problem rows like pods, sorts events newest first. Pods keep their existing table. lint, typecheck, test and build pass; nothing under server/, cli/ or docs changed.
+<!-- SECTION:FINAL_SUMMARY:END -->
