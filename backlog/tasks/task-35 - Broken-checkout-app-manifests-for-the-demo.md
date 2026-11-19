@@ -1,10 +1,11 @@
 ---
 id: TASK-35
 title: Broken checkout app manifests for the demo
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@claude'
 created_date: '2026-11-19T14:44:00Z'
-updated_date: '2026-11-19T14:50:00Z'
+updated_date: '2026-11-19T15:02:00Z'
 labels:
   - demo
   - tier:2
@@ -58,22 +59,30 @@ Checked by the planner on 2026-11-19 on kind 0.33 with node image kindest/node:v
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `demo/checkout.yaml` applies to a fresh kind cluster with `kubectl apply -f demo/checkout.yaml` (retried while the namespace's default ServiceAccount appears) and creates everything in namespace `checkout`
-- [ ] #2 Within 2 minutes `kubectl -n checkout get deploy web` shows 2/2 ready and `kubectl -n checkout get endpointslices -l kubernetes.io/service-name=web -o jsonpath='{.items[*].endpoints}'` prints nothing
-- [ ] #3 The api pod is in CrashLoopBackOff with restartCount 1 or more, and `kubectl -n checkout logs deploy/api --previous` contains `cannot connect to postgres at db:5432`; `kubectl -n checkout get configmap api-config -o yaml` shows `DB_HOST: db`
-- [ ] #4 `postgres-0` stays Pending with a FailedScheduling event, and PVC `data-postgres-0` stays Pending with a ProvisioningFailed event naming `fast-ssd`
-- [ ] #5 Job `worker` has condition Failed=True and `kubectl -n checkout logs job/worker` prints its error line
-- [ ] #6 The file has no Secret objects or credentials, every image has a pinned tag, and a comment at the top lists the four planted problems
+- [x] #1 `demo/checkout.yaml` applies to a fresh kind cluster with `kubectl apply -f demo/checkout.yaml` (retried while the namespace's default ServiceAccount appears) and creates everything in namespace `checkout`
+- [x] #2 Within 2 minutes `kubectl -n checkout get deploy web` shows 2/2 ready and `kubectl -n checkout get endpointslices -l kubernetes.io/service-name=web -o jsonpath='{.items[*].endpoints}'` prints nothing
+- [x] #3 The api pod is in CrashLoopBackOff with restartCount 1 or more, and `kubectl -n checkout logs deploy/api --previous` contains `cannot connect to postgres at db:5432`; `kubectl -n checkout get configmap api-config -o yaml` shows `DB_HOST: db`
+- [x] #4 `postgres-0` stays Pending with a FailedScheduling event, and PVC `data-postgres-0` stays Pending with a ProvisioningFailed event naming `fast-ssd`
+- [x] #5 Job `worker` has condition Failed=True and `kubectl -n checkout logs job/worker` prints its error line
+- [x] #6 The file has no Secret objects or credentials, every image has a pinned tag, and a comment at the top lists the four planted problems
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 Checked on a fresh cluster (`kind create cluster --name kubin-checkout-test --wait 2m`), with the commands and their output in the implementation notes, and the cluster deleted afterwards (`kind delete cluster --name kubin-checkout-test`)
-- [ ] #2 The task's commit changes only `demo/checkout.yaml` (check with `git show --stat HEAD`)
+- [x] #1 Checked on a fresh cluster (`kind create cluster --name kubin-checkout-test --wait 2m`), with the commands and their output in the implementation notes, and the cluster deleted afterwards (`kind delete cluster --name kubin-checkout-test`)
+- [x] #2 The task's commit changes only `demo/checkout.yaml` (check with `git show --stat HEAD`)
 <!-- DOD:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
 Planner, 2026-11-19: the video no longer walks through root causes (see TASK-40). The cluster only needs to look realistically broken: a crash-looping pod with a log, a Pending pod, a failed Job. The spec above still stands.
+
+Verified on fresh kind cluster kubin-checkout-test (deleted afterwards). apply: all 8 objects created first try. web 2/2 ready after 82s; web EndpointSlice ENDPOINTS <unset> (jsonpath prints null on kubectl 1.37, not empty). api: CrashLoopBackOff, restarts 4, 'kubectl logs deploy/api --previous' printed 'api: cannot connect to postgres at db:5432' (while the container is in Error state between restarts the command can fail with 'unable to retrieve container logs'; it works in CrashLoopBackOff). api-config shows DB_HOST: db. postgres-0 Pending, events: FailedScheduling 'unbound immediate PersistentVolumeClaims', ProvisioningFailed 'storageclass fast-ssd not found'. Job worker: FailureTarget/Failed=True, log 'worker: cannot connect to postgres at db:5432'.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added demo/checkout.yaml: namespace checkout with web (Service selector typo), api (CrashLoopBackOff on ConfigMap-derived DB name), postgres StatefulSet (PVC on missing fast-ssd) and a failing worker Job. Verified on a fresh kind cluster, which was deleted afterwards. Note: the endpoints jsonpath prints null rather than nothing on kubectl 1.37, and logs --previous can fail briefly while the api container is in Error state between restarts.
+<!-- SECTION:FINAL_SUMMARY:END -->
