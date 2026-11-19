@@ -1,10 +1,11 @@
 ---
 id: TASK-36
 title: Split the demo into a setup script and kubin create
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@claude'
 created_date: '2026-11-19T14:45:00Z'
-updated_date: '2026-11-19T14:45:00Z'
+updated_date: '2026-11-19T15:06:00Z'
 labels:
   - demo
   - tier:3
@@ -55,18 +56,30 @@ In the new demo story (user, 2026-11-19) the user has k9s open on the cluster an
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 From a clean state (no `kubin-demo` cluster or container), `./demo/setup.sh` exits 0 and leaves the kind cluster and the kubin container running, the checkout app applied with its four problems visible, and `demo/bin/kubin` built
-- [ ] #2 `demo/setup.sh` never runs `kubin create`: `grep -n "kubin create" demo/setup.sh` shows only lines inside printed instructions (echo or heredoc), and setup prints no snapshot link
-- [ ] #3 After setup, in a new shell, `kubectl config current-context` prints `kind-kubin-demo`, and `PATH="$PWD/demo/bin:$PATH" KUBIN_SERVER=http://localhost:8080 kubin create` prints a `http://localhost:8080/s/<id>` link
-- [ ] #4 From a clean state, `./demo/run.sh` sets up and runs `kubin create` and prints the link, so the README's three commands still work unchanged
-- [ ] #5 Setup ends by printing the export line for PATH and KUBIN_SERVER, `kubin create`, `k9s -n checkout` and the teardown commands
-- [ ] #6 `demo/crashing-pod.yaml` is deleted and `git grep -n "crashing-pod\|payment-api" -- demo/*.sh` finds nothing
-- [ ] #7 `/demo/bin/` is gitignored and, after setup, `nix-shell --run "command -v kubin"` prints the path of `demo/bin/kubin`
+- [x] #1 From a clean state (no `kubin-demo` cluster or container), `./demo/setup.sh` exits 0 and leaves the kind cluster and the kubin container running, the checkout app applied with its four problems visible, and `demo/bin/kubin` built
+- [x] #2 `demo/setup.sh` never runs `kubin create`: `grep -n "kubin create" demo/setup.sh` shows only lines inside printed instructions (echo or heredoc), and setup prints no snapshot link
+- [x] #3 After setup, in a new shell, `kubectl config current-context` prints `kind-kubin-demo`, and `PATH="$PWD/demo/bin:$PATH" KUBIN_SERVER=http://localhost:8080 kubin create` prints a `http://localhost:8080/s/<id>` link
+- [x] #4 From a clean state, `./demo/run.sh` sets up and runs `kubin create` and prints the link, so the README's three commands still work unchanged
+- [x] #5 Setup ends by printing the export line for PATH and KUBIN_SERVER, `kubin create`, `k9s -n checkout` and the teardown commands
+- [x] #6 `demo/crashing-pod.yaml` is deleted and `git grep -n "crashing-pod\|payment-api" -- demo/*.sh` finds nothing
+- [x] #7 `/demo/bin/` is gitignored and, after setup, `nix-shell --run "command -v kubin"` prints the path of `demo/bin/kubin`
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 `bash -n demo/setup.sh demo/run.sh` and `nix-shell -p shellcheck --run "shellcheck demo/setup.sh demo/run.sh"` pass
-- [ ] #2 Ran `./demo/setup.sh` and then `./demo/run.sh` from a clean state on this machine, output summarised in the implementation notes, and tore both down afterwards (`docker rm -f kubin-demo; kind delete cluster --name kubin-demo`)
-- [ ] #3 The task's commits change only `demo/`, `shell.nix` and `.gitignore` (check with `git log --stat`)
+- [x] #1 `bash -n demo/setup.sh demo/run.sh` and `nix-shell -p shellcheck --run "shellcheck demo/setup.sh demo/run.sh"` pass
+- [x] #2 Ran `./demo/setup.sh` and then `./demo/run.sh` from a clean state on this machine, output summarised in the implementation notes, and tore both down afterwards (`docker rm -f kubin-demo; kind delete cluster --name kubin-demo`)
+- [x] #3 The task's commits change only `demo/`, `shell.nix` and `.gitignore` (check with `git log --stat`)
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Removed leftover kubin-demo cluster and container from the old demo before testing. Ran setup.sh (rc 0, context kind-kubin-demo, kubin create printed a link), tore down, ran run.sh (rc 0, link printed), tore down. nix-shell finds demo/bin/kubin. Shellcheck and bash -n pass.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added demo/setup.sh (cluster, server, checkout app, waits for the four problems, builds demo/bin/kubin, prints next steps). run.sh now calls it then runs kubin create and always prints teardown. Deleted crashing-pod.yaml, gitignored /demo/bin/, added demo/bin to the shell.nix PATH.
+<!-- SECTION:FINAL_SUMMARY:END -->

@@ -2,3 +2,4 @@
 /cli/dist/
 /server/dist/
 kubin-snapshot-*.tar.gz
+/demo/bin/

@@ -21,6 +21,6 @@ pkgs.mkShell {
 
   # The pinned backlog CLI (tools/bin/backlog).
   shellHook = ''
-    export PATH="$PWD/tools/bin:$PATH"
+    export PATH="$PWD/tools/bin:$PWD/demo/bin:$PATH"
   '';
 }
