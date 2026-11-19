@@ -1,0 +1,154 @@
+# Broken checkout app for the kubin demo. Four planted problems:
+# 1. Service web selects app=wbe (typo), so it has no endpoints.
+# 2. api crash-loops: it cannot connect to postgres at db:5432 (DB_HOST in api-config).
+# 3. StatefulSet postgres stays Pending: its PVC asks for StorageClass fast-ssd, which does not exist.
+# 4. Job worker fails on the same database name and is not retried.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: checkout
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+  namespace: checkout
+data:
+  DB_HOST: db
+  DB_PORT: "5432"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: checkout
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: busybox:1.36
+          command: ["sh", "-c", "mkdir -p /www && echo ok > /www/index.html && exec httpd -f -p 8080 -h /www"]
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            periodSeconds: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: checkout
+spec:
+  selector:
+    app: wbe
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: checkout
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+        - name: api
+          image: busybox:1.36
+          envFrom:
+            - configMapRef:
+                name: api-config
+          command:
+            - sh
+            - -c
+            - |
+              echo "api: cannot connect to postgres at $DB_HOST:$DB_PORT" >&2
+              exit 1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: checkout
+spec:
+  clusterIP: None
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: checkout
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: fast-ssd
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: worker
+  namespace: checkout
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: worker
+          image: busybox:1.36
+          envFrom:
+            - configMapRef:
+                name: api-config
+          command:
+            - sh
+            - -c
+            - |
+              echo "worker: cannot connect to postgres at $DB_HOST:$DB_PORT" >&2
+              exit 1
