@@ -1,20 +1,28 @@
 import { describe, expect, it } from "vitest";
 
-import { podEvents } from "./events";
+import { resourceEvents } from "./events";
 import type { Event, Pod } from "./k8s";
 
-const pod: Pod = { metadata: { name: "api-1", namespace: "shop", uid: "u1" } };
+const pod: Pod = {
+    kind: "Pod",
+    metadata: { name: "api-1", namespace: "shop", uid: "u1" },
+};
 
 function ev(over: Partial<Event>): Event {
     return {
-        involvedObject: { kind: "Pod", name: "api-1", uid: "u1" },
+        involvedObject: {
+            kind: "Pod",
+            namespace: "shop",
+            name: "api-1",
+            uid: "u1",
+        },
         ...over,
     };
 }
 
-describe("podEvents", () => {
+describe("resourceEvents", () => {
     it("keeps only this pod's events, newest first", () => {
-        const got = podEvents(pod, [
+        const got = resourceEvents(pod, [
             ev({ reason: "Pulled", lastTimestamp: "2026-11-17T10:00:00Z" }),
             ev({
                 reason: "BackOff",
@@ -32,7 +40,12 @@ describe("podEvents", () => {
             }),
             ev({
                 reason: "Earlier pod with this name",
-                involvedObject: { kind: "Pod", name: "api-1", uid: "old" },
+                involvedObject: {
+                    kind: "Pod",
+                    namespace: "shop",
+                    name: "api-1",
+                    uid: "old",
+                },
             }),
         ]);
         expect(got.map((e) => [e.reason, e.type, e.count])).toEqual([
@@ -42,7 +55,7 @@ describe("podEvents", () => {
     });
 
     it("reads times and counts from every event version", () => {
-        const got = podEvents(pod, [
+        const got = resourceEvents(pod, [
             ev({ reason: "a", firstTimestamp: "2026-11-17T10:01:00Z" }),
             ev({
                 reason: "b",
@@ -60,12 +73,64 @@ describe("podEvents", () => {
     });
 
     it("matches by name when either side has no uid", () => {
-        const noUid: Pod = { metadata: { name: "api-1", namespace: "shop" } };
-        expect(podEvents(noUid, [ev({ reason: "x" })])).toHaveLength(1);
+        const noUid: Pod = {
+            kind: "Pod",
+            metadata: { name: "api-1", namespace: "shop" },
+        };
+        expect(resourceEvents(noUid, [ev({ reason: "x" })])).toHaveLength(1);
         expect(
-            podEvents(pod, [
-                ev({ involvedObject: { kind: "Pod", name: "api-1" } }),
+            resourceEvents(pod, [
+                ev({
+                    involvedObject: {
+                        kind: "Pod",
+                        namespace: "shop",
+                        name: "api-1",
+                    },
+                }),
             ])
         ).toHaveLength(1);
+    });
+
+    it("keeps events of the same name in another namespace apart", () => {
+        expect(
+            resourceEvents(pod, [
+                ev({
+                    involvedObject: {
+                        kind: "Pod",
+                        namespace: "other",
+                        name: "api-1",
+                        uid: "u1",
+                    },
+                }),
+            ])
+        ).toHaveLength(0);
+    });
+
+    it("matches a node, whose events have no namespace", () => {
+        const node = {
+            kind: "Node",
+            metadata: { name: "n1", uid: "nu" },
+        };
+        const got = resourceEvents(node, [
+            ev({
+                reason: "NodeNotReady",
+                involvedObject: { kind: "Node", name: "n1", uid: "nu" },
+                lastTimestamp: "2026-11-17T10:00:00Z",
+            }),
+            ev({
+                reason: "Rebooted",
+                involvedObject: { kind: "Node", name: "n1" },
+                lastTimestamp: "2026-11-17T11:00:00Z",
+            }),
+            ev({
+                reason: "Other node",
+                involvedObject: { kind: "Node", name: "n2" },
+            }),
+            ev({
+                reason: "A pod called n1",
+                involvedObject: { kind: "Pod", name: "n1" },
+            }),
+        ]);
+        expect(got.map((e) => e.reason)).toEqual(["Rebooted", "NodeNotReady"]);
     });
 });

@@ -1,29 +1,31 @@
 import { TriangleAlert } from "lucide-react";
 
 import { listResources } from "@/lib/api";
-import { podEvents } from "@/lib/events";
-import type { Event, Pod } from "@/lib/k8s";
+import { resourceEvents } from "@/lib/events";
+import type { Event, ObjectMeta } from "@/lib/k8s";
 import { age } from "@/lib/pods";
 import { useFetch } from "@/lib/use-fetch";
 import { cn } from "@/lib/utils";
 
 import { Empty, LoadError, Loading } from "@/components/common/states";
 
-/** The pod's events, newest first, as kubectl describe pod lists them. */
-export function PodEvents({
+/** The object's events, newest first, as kubectl describe lists them. */
+export function ResourceEvents({
     snapshotId,
-    pod,
+    object,
     capturedAt,
 }: {
     snapshotId: string;
-    pod: Pod;
+    object: { kind?: string; metadata?: ObjectMeta };
     capturedAt: string;
 }) {
-    const ns = pod.metadata?.namespace ?? "";
+    const ns = object.metadata?.namespace ?? "";
     const state = useFetch(
         (signal) =>
             listResources<Event>(
                 snapshotId,
+                // Events about cluster-scoped objects live in some namespace,
+                // so those are listed without a filter.
                 { kind: "Event", namespace: ns },
                 signal
             ),
@@ -48,15 +50,16 @@ export function PodEvents({
             );
             break;
         case "ok": {
-            const events = podEvents(
-                pod,
+            const events = resourceEvents(
+                object,
                 state.data.map((r) => r.object)
             );
             body =
                 events.length === 0 ? (
                     <Empty>
-                        No events were recorded for this pod. Kubernetes keeps
-                        events for an hour by default, so older ones are gone.
+                        No events were recorded for this resource. Kubernetes
+                        keeps events for an hour by default, so older ones are
+                        gone.
                     </Empty>
                 ) : (
                     <div className="overflow-x-auto rounded-lg border">

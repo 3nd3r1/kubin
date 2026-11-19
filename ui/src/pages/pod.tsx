@@ -1,7 +1,4 @@
-import { useMemo } from "react";
-
 import { Link, useParams } from "react-router";
-import { stringify } from "yaml";
 
 import { type Snapshot, getResource } from "@/lib/api";
 import type { ContainerState, ContainerStatus, Pod } from "@/lib/k8s";
@@ -13,8 +10,9 @@ import { Badge } from "@/components/ui/badge";
 
 import { LoadError, Loading } from "@/components/common/states";
 import { PodStatus } from "@/components/common/status";
-import { PodEvents } from "@/components/pod/events";
 import { PodLogs } from "@/components/pod/logs";
+import { ResourceEvents } from "@/components/resource/events";
+import { YamlView } from "@/components/resource/yaml";
 
 import { NotFoundPage } from "./not-found";
 
@@ -61,7 +59,6 @@ function PodDetail({ pod, snapshot }: { pod: Pod; snapshot: Snapshot }) {
     const capturedAt = snapshot.manifest.created_at;
     const s = summarize(pod, capturedAt);
     const podKey = `${s.namespace}/${s.name}`;
-    const yaml = useMemo(() => stringify(pod, { lineWidth: 0 }), [pod]);
     const statuses = new Map(
         [
             ...(pod.status?.initContainerStatuses ?? []),
@@ -129,20 +126,13 @@ function PodDetail({ pod, snapshot }: { pod: Pod; snapshot: Snapshot }) {
                 pod={pod}
             />
 
-            <PodEvents
+            <ResourceEvents
                 snapshotId={snapshot.id}
-                pod={pod}
+                object={pod}
                 capturedAt={capturedAt}
             />
 
-            <section aria-labelledby="yaml" className="space-y-3">
-                <h3 id="yaml" className="text-lg font-semibold">
-                    YAML
-                </h3>
-                <pre className="bg-muted max-h-[32rem] overflow-auto rounded-lg p-4 font-mono text-xs leading-relaxed">
-                    {yaml}
-                </pre>
-            </section>
+            <YamlView object={pod} manifest={snapshot.manifest} />
         </>
     );
 }

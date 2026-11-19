@@ -1,10 +1,11 @@
 ---
 id: TASK-16
 title: Resource detail page with YAML and events for every kind
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@claude'
 created_date: '2026-11-17T10:05:00Z'
-updated_date: '2026-11-19T11:42:00Z'
+updated_date: '2026-11-19T12:17:00Z'
 labels:
   - ui
   - tier:3
@@ -51,17 +52,17 @@ Debugging means opening any resource and reading its YAML and the events about i
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Every row of a kind table links to `/s/{id}/{resource}/{namespace}/{name}`, which shows the object as YAML with a Copy button that copies exactly the YAML shown
-- [ ] #2 The detail lists the events whose `involvedObject` matches the resource (kind, namespace, name, and UID when both have one) with type, reason, message, count and last seen, newest first; `ui/src/lib/events.test.ts` covers a namespaced kind and a Node
-- [ ] #3 When `manifest.redactions` contains `env-values`, env entries with neither `value` nor `valueFrom` are marked as redacted in the YAML, with a test
-- [ ] #4 A resource missing from the snapshot shows the not-found page
-- [ ] #5 The pod page keeps its containers and logs and uses the shared events and YAML components
+- [x] #1 Every row of a kind table links to `/s/{id}/{resource}/{namespace}/{name}`, which shows the object as YAML with a Copy button that copies exactly the YAML shown
+- [x] #2 The detail lists the events whose `involvedObject` matches the resource (kind, namespace, name, and UID when both have one) with type, reason, message, count and last seen, newest first; `ui/src/lib/events.test.ts` covers a namespaced kind and a Node
+- [x] #3 When `manifest.redactions` contains `env-values`, env entries with neither `value` nor `valueFrom` are marked as redacted in the YAML, with a test
+- [x] #4 A resource missing from the snapshot shows the not-found page
+- [x] #5 The pod page keeps its containers and logs and uses the shared events and YAML components
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 `nix-shell --run 'cd ui && make lint && make typecheck && make test && make build'` passes
-- [ ] #2 The task's commits change nothing under `server/`, `cli/` or `docs/snapshot-format.md` (check with `git log --stat`)
+- [x] #1 `nix-shell --run 'cd ui && make lint && make typecheck && make test && make build'` passes
+- [x] #2 The task's commits change nothing under `server/`, `cli/` or `docs/snapshot-format.md` (check with `git log --stat`)
 <!-- DOD:END -->
 
 ## Implementation Notes
@@ -69,3 +70,9 @@ Debugging means opening any resource and reading its YAML and the events about i
 <!-- SECTION:NOTES:BEGIN -->
 From TASK-12: when the manifest redactions list has env-values, show env entries without value or valueFrom as redacted, not as empty. Secret data values are empty strings under secret-data.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added a shared ResourcePage at /s/{id}/{resource}/{ns}/{name} with labels, annotations, events and YAML (Copy copies the exact string shown). Generic kind table rows now link to it. events are matched by kind, namespace, name and UID via resourceEvents (tests for a namespaced kind and a Node). toYaml adds a comment on env entries without value/valueFrom when env-values was redacted (tests). Missing resources show the not-found page. Pod page uses the shared ResourceEvents and YamlView. Checks: lint, typecheck, test, build pass. Not exercised in a browser; Copy and routing are covered only by typecheck/build.
+<!-- SECTION:FINAL_SUMMARY:END -->

@@ -1,6 +1,6 @@
-import type { Event, Pod } from "./k8s";
+import type { Event, ObjectMeta } from "./k8s";
 
-export type PodEvent = {
+export type ResourceEvent = {
     key: string;
     type: string;
     reason: string;
@@ -24,18 +24,25 @@ function lastSeen(e: Event): string {
 }
 
 /**
- * The events about one pod, newest first. Events are matched by kind and
- * name, and by UID when both sides have one, so a pod recreated under the
- * same name doesn't pick up its predecessor's events.
+ * The events about one object, newest first. Events are matched by kind,
+ * namespace and name, and by UID when both sides have one, so an object
+ * recreated under the same name doesn't pick up its predecessor's events.
+ * Cluster-scoped objects have no namespace, and neither does the
+ * involvedObject of their events.
  */
-export function podEvents(pod: Pod, events: Event[]): PodEvent[] {
-    const name = pod.metadata?.name;
-    const uid = pod.metadata?.uid;
+export function resourceEvents(
+    object: { kind?: string; metadata?: ObjectMeta },
+    events: Event[]
+): ResourceEvent[] {
+    const { name, uid } = object.metadata ?? {};
+    const namespace = object.metadata?.namespace ?? "";
     return (
         events
             .filter((e) => {
                 const o = e.involvedObject;
-                if (o?.kind !== "Pod" || o.name !== name) return false;
+                if (!o || o.kind !== object.kind || o.name !== name)
+                    return false;
+                if ((o.namespace ?? "") !== namespace) return false;
                 return !uid || !o.uid || o.uid === uid;
             })
             .map((e, i) => ({

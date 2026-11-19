@@ -1,12 +1,12 @@
 import { useMemo } from "react";
 
-import { useParams, useSearchParams } from "react-router";
+import { Link, useParams, useSearchParams } from "react-router";
 
 import { listResources } from "@/lib/api";
 import type { Pod } from "@/lib/k8s";
 import { resolveSegment } from "@/lib/kinds";
 import { age, summarize } from "@/lib/pods";
-import { nsParam, useSnapshot } from "@/lib/snapshot";
+import { nsParam, resourcePath, useSnapshot } from "@/lib/snapshot";
 import { useFetch } from "@/lib/use-fetch";
 
 import { Empty, LoadError, Loading } from "@/components/common/states";
@@ -21,16 +21,17 @@ export function KindPage() {
     const found = resolveSegment(resource, snapshot.counts);
     if (!found) return <NotFoundPage />;
     // Remount per kind so no state leaks between tables.
-    return <KindTable key={resource} {...found} />;
+    return <KindTable key={resource} segment={resource} {...found} />;
 }
 
 type ObjectLike = { metadata?: { creationTimestamp?: string } };
 
 function KindTable({
+    segment,
     kind,
     group,
     info,
-}: NonNullable<ReturnType<typeof resolveSegment>>) {
+}: NonNullable<ReturnType<typeof resolveSegment>> & { segment: string }) {
     const snapshot = useSnapshot();
     const [params] = useSearchParams();
     const ns = nsParam(params);
@@ -83,6 +84,8 @@ function KindTable({
                 <GenericTable
                     rows={items}
                     created={created}
+                    snapshotId={snapshot.id}
+                    segment={segment}
                     namespaced={
                         info ? info.namespaced : items.some((r) => r.namespace)
                     }
@@ -93,10 +96,14 @@ function KindTable({
 }
 
 function GenericTable({
+    snapshotId,
+    segment,
     rows,
     created,
     namespaced,
 }: {
+    snapshotId: string;
+    segment: string;
     rows: { namespace: string; name: string; object: ObjectLike }[];
     created: string;
     namespaced: boolean;
@@ -121,7 +128,14 @@ function GenericTable({
                             key={`${r.namespace}/${r.name}`}
                             className="border-t"
                         >
-                            <td className="px-3 py-2 font-mono">{r.name}</td>
+                            <td className="px-3 py-2 font-mono">
+                                <Link
+                                    to={resourcePath(snapshotId, segment, r)}
+                                    className="hover:underline"
+                                >
+                                    {r.name}
+                                </Link>
+                            </td>
                             {namespaced && (
                                 <td className="text-muted-foreground px-3 py-2 font-mono">
                                     {r.namespace}

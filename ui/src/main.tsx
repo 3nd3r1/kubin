@@ -15,6 +15,7 @@ import { KindPage } from "@/pages/kind";
 import { NotFoundPage } from "@/pages/not-found";
 import { PodPage } from "@/pages/pod";
 import { PodsPage } from "@/pages/pods";
+import { ResourcePage } from "@/pages/resource";
 import { SnapshotLayout } from "@/pages/snapshot";
 
 const router = createBrowserRouter([
@@ -29,6 +30,10 @@ const router = createBrowserRouter([
                     { index: true, element: <PodsPage /> },
                     { path: "pods/:ns/:name", element: <PodPage /> },
                     { path: ":resource", element: <KindPage /> },
+                    {
+                        path: ":resource/:ns/:name",
+                        element: <ResourcePage />,
+                    },
                     { path: "*", element: <NotFoundPage /> },
                 ],
             },
