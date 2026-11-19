@@ -1,80 +1,10 @@
-import { useMemo } from "react";
-
 import { Link, useNavigate } from "react-router";
 
-import { listResources } from "@/lib/api";
-import type { Pod } from "@/lib/k8s";
-import { type PodSummary, byNamespace, problems, summarize } from "@/lib/pods";
+import type { PodSummary } from "@/lib/pods";
 import { podPath, useSnapshot } from "@/lib/snapshot";
-import { useFetch } from "@/lib/use-fetch";
 import { cn } from "@/lib/utils";
 
-import { LoadError, Loading } from "@/components/common/states";
 import { PodStatus } from "@/components/common/status";
-
-/** Every pod in the snapshot, with the ones in trouble on top. */
-export function PodsPage() {
-    const snapshot = useSnapshot();
-    const state = useFetch(
-        (signal) => listResources<Pod>(snapshot.id, { kind: "Pod" }, signal),
-        [snapshot.id]
-    );
-    const pods = useMemo(
-        () =>
-            state.status === "ok"
-                ? state.data.map((r) =>
-                      summarize(r.object, snapshot.manifest.created_at)
-                  )
-                : [],
-        [state, snapshot.manifest.created_at]
-    );
-
-    if (state.status === "loading") return <Loading what="pods" />;
-    if (state.status === "error") return <LoadError message={state.message} />;
-    if (state.status === "missing") return <LoadError message="not found" />;
-    if (pods.length === 0)
-        return (
-            <p className="text-muted-foreground">This snapshot has no pods.</p>
-        );
-
-    const trouble = problems(pods);
-    return (
-        <div className="space-y-10">
-            <section aria-labelledby="problems" className="space-y-3">
-                <h2 id="problems" className="text-lg font-semibold">
-                    {trouble.length === 0
-                        ? "No problems"
-                        : `${trouble.length} ${trouble.length === 1 ? "pod needs" : "pods need"} attention`}
-                </h2>
-                {trouble.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">
-                        All {pods.length} pods are running and ready, with no
-                        restarts.
-                    </p>
-                ) : (
-                    <PodTable pods={trouble} showNamespace />
-                )}
-            </section>
-
-            <section aria-labelledby="all-pods" className="space-y-6">
-                <h2 id="all-pods" className="text-lg font-semibold">
-                    All pods{" "}
-                    <span className="text-muted-foreground font-normal">
-                        {pods.length}
-                    </span>
-                </h2>
-                {byNamespace(pods).map(([ns, ps]) => (
-                    <div key={ns} className="space-y-2">
-                        <h3 className="text-muted-foreground font-mono text-sm">
-                            {ns}
-                        </h3>
-                        <PodTable pods={ps} />
-                    </div>
-                ))}
-            </section>
-        </div>
-    );
-}
 
 export function PodTable({
     pods,

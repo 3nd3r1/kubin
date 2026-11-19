@@ -13,8 +13,8 @@ import "./index.css";
 import { HomePage } from "@/pages/home";
 import { KindPage } from "@/pages/kind";
 import { NotFoundPage } from "@/pages/not-found";
+import { OverviewPage } from "@/pages/overview";
 import { PodPage } from "@/pages/pod";
-import { PodsPage } from "@/pages/pods";
 import { ResourcePage } from "@/pages/resource";
 import { SnapshotLayout } from "@/pages/snapshot";
 
@@ -27,7 +27,7 @@ const router = createBrowserRouter([
                 path: "/s/:id",
                 element: <SnapshotLayout />,
                 children: [
-                    { index: true, element: <PodsPage /> },
+                    { index: true, element: <OverviewPage /> },
                     { path: "pods/:ns/:name", element: <PodPage /> },
                     { path: ":resource", element: <KindPage /> },
                     {

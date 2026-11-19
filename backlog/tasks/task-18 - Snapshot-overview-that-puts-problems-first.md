@@ -1,10 +1,11 @@
 ---
 id: TASK-18
 title: Snapshot overview that puts problems first
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@claude'
 created_date: '2026-11-17T10:05:00Z'
-updated_date: '2026-11-19T11:42:00Z'
+updated_date: '2026-11-19T13:08:00Z'
 labels:
   - ui
   - tier:3
@@ -49,15 +50,21 @@ Someone opening a link usually wants to know what is wrong. doc-1 asks for unhea
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `/s/{id}` shows the cluster name, Kubernetes version, capture time, node count and a count per kind that links to the kind's table
-- [ ] #2 Problems come first: pods flagged by `problems()` in `ui/src/lib/pods.ts`, then resources flagged by `problem()` in `ui/src/lib/columns.ts`, errors before warnings
-- [ ] #3 Warning events from the hour before capture are listed newest first; the selection is tested in `ui/src/lib/events.test.ts`, including events older than the hour and events without a time
-- [ ] #4 Every listed item links to its detail page, and `?ns=` narrows problems and events
-- [ ] #5 With nothing wrong the page says so in one line instead of showing empty sections
+- [x] #1 `/s/{id}` shows the cluster name, Kubernetes version, capture time, node count and a count per kind that links to the kind's table
+- [x] #2 Problems come first: pods flagged by `problems()` in `ui/src/lib/pods.ts`, then resources flagged by `problem()` in `ui/src/lib/columns.ts`, errors before warnings
+- [x] #3 Warning events from the hour before capture are listed newest first; the selection is tested in `ui/src/lib/events.test.ts`, including events older than the hour and events without a time
+- [x] #4 Every listed item links to its detail page, and `?ns=` narrows problems and events
+- [x] #5 With nothing wrong the page says so in one line instead of showing empty sections
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 `nix-shell --run 'cd ui && make lint && make typecheck && make test && make build'` passes
-- [ ] #2 The task's commits change nothing under `server/`, `cli/` or `docs/snapshot-format.md` (check with `git log --stat`)
+- [x] #1 `nix-shell --run 'cd ui && make lint && make typecheck && make test && make build'` passes
+- [x] #2 The task's commits change nothing under `server/`, `cli/` or `docs/snapshot-format.md` (check with `git log --stat`)
 <!-- DOD:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added ui/src/pages/overview.tsx on /s/{id}, replacing PodsPage (PodTable stays in pods.tsx for the kind page). Facts and per-kind count links, pod problems first, then problem() hits for workloads, nodes, jobs and volumes (errors first), then warnings from the hour before capture via recentWarnings in lib/events.ts (tested). Pods, Events and each checked kind load as separate requests; ?ns= narrows them. One-line all-clear when nothing is wrong. Lint, typecheck, test, build pass; nothing under server/, cli/ or snapshot-format.md changed.
+<!-- SECTION:FINAL_SUMMARY:END -->

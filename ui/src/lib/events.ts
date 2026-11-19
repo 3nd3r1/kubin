@@ -61,3 +61,29 @@ export function resourceEvents(
             )
     );
 }
+
+const hour = 60 * 60 * 1000;
+
+/**
+ * The Warning events from the hour before capturedAt, newest first. The hour
+ * is measured from the capture, not from now. Events without a time, and
+ * events from after the capture, are left out.
+ */
+export function recentWarnings<T extends { object: Event }>(
+    items: T[],
+    capturedAt: string
+): T[] {
+    const end = Date.parse(capturedAt);
+    if (Number.isNaN(end)) return [];
+    return items
+        .map((item) => ({ item, t: Date.parse(lastSeen(item.object)) }))
+        .filter(
+            ({ item, t }) =>
+                item.object.type === "Warning" &&
+                !Number.isNaN(t) &&
+                t <= end &&
+                t >= end - hour
+        )
+        .sort((a, b) => b.t - a.t)
+        .map(({ item }) => item);
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resourceEvents } from "./events";
+import { recentWarnings, resourceEvents } from "./events";
 import type { Event, Pod } from "./k8s";
 
 const pod: Pod = {
@@ -132,5 +132,38 @@ describe("resourceEvents", () => {
             }),
         ]);
         expect(got.map((e) => e.reason)).toEqual(["Rebooted", "NodeNotReady"]);
+    });
+});
+
+describe("recentWarnings", () => {
+    const captured = "2026-11-17T12:00:00Z";
+    const item = (reason: string, over: Partial<Event>) => ({
+        object: ev({ type: "Warning", reason, ...over }),
+    });
+
+    it("keeps warnings from the hour before capture, newest first", () => {
+        const got = recentWarnings(
+            [
+                item("old", { lastTimestamp: "2026-11-17T10:59:59Z" }),
+                item("edge", { lastTimestamp: "2026-11-17T11:00:00Z" }),
+                item("newest", { eventTime: "2026-11-17T11:50:00Z" }),
+                item("normal", {
+                    type: "Normal",
+                    lastTimestamp: "2026-11-17T11:30:00Z",
+                }),
+                item("after", { lastTimestamp: "2026-11-17T12:00:01Z" }),
+                item("mid", { lastTimestamp: "2026-11-17T11:20:00Z" }),
+            ],
+            captured
+        );
+        expect(got.map((e) => e.object.reason)).toEqual([
+            "newest",
+            "mid",
+            "edge",
+        ]);
+    });
+
+    it("leaves out events without a time", () => {
+        expect(recentWarnings([item("none", {})], captured)).toEqual([]);
     });
 });
