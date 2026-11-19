@@ -1,0 +1,330 @@
+#!/usr/bin/env bash
+# Runs one Backlog task, or the planner, in a fresh headless Claude session on
+# the model the task's tier locks. See .agents/README.md.
+set -euo pipefail
+
+usage() {
+	cat <<'EOF'
+Usage:
+  .agents/run 15 | TASK-15     run one task on its tier
+  .agents/run --next           run the next ready To Do task, milestones in order
+  .agents/run --watch          run each card moved to Run on the board, one at a time
+  .agents/run --plan m-2       run the planner on a milestone
+  add --dry-run to print what would run without launching anything
+
+Exit status: 0 done, 1 failed, 2 usage, 3 blocked or needs the user.
+Usage per session is printed and appended to .agents/logs/usage.tsv.
+EOF
+}
+
+ROOT=$(git rev-parse --show-toplevel)
+AGENTS="$ROOT/.agents"
+# shellcheck source=SCRIPTDIR/config
+source "$AGENTS/config"
+CLAUDE_BIN=${CLAUDE_BIN:-claude}
+LOGS="$AGENTS/logs"
+cd "$ROOT"
+
+say() { echo "agents: $*" >&2; }
+die() {
+	say "$1"
+	exit "${2:-1}"
+}
+
+DRY=0
+MODE=""
+ARG=""
+while (($#)); do
+	case $1 in
+	--dry-run) DRY=1 ;;
+	--next) MODE=next ;;
+	--watch) MODE=watch ;;
+	--plan)
+		MODE=plan
+		ARG=${2:-}
+		[[ -n $ARG ]] || die "--plan needs a milestone, like m-2" 2
+		shift
+		;;
+	-h | --help)
+		usage
+		exit 0
+		;;
+	TASK-* | task-*)
+		MODE=task
+		ARG=${1^^}
+		;;
+	[0-9]*)
+		MODE=task
+		ARG=TASK-$1
+		;;
+	*)
+		usage >&2
+		exit 2
+		;;
+	esac
+	shift
+done
+[[ -n $MODE ]] || {
+	usage >&2
+	exit 2
+}
+
+task_json() { backlog task view "$1" --json | jq '.task'; }
+
+# setting NAME prints "model effort" for TIER_n, PLANNER or REVIEWER.
+setting() {
+	local v=${!1:-}
+	[[ -n $v ]] || die "no $1 in .agents/config"
+	echo "$v"
+}
+
+# render FILE KEY VALUE... fills {{KEY}} placeholders.
+render() {
+	local text
+	text=$(<"$AGENTS/prompts/$1")
+	shift
+	while (($#)); do
+		text=${text//"{{$1}}"/$2}
+		shift 2
+	done
+	echo "$text"
+}
+
+# launch NAME SETTING PROMPT [claude flags...] runs one headless session and
+# prints its final reply. The full output goes to .agents/logs/ and a usage
+# line to .agents/logs/usage.tsv.
+launch() {
+	local name=$1 model effort prompt=$3
+	read -r model effort <<<"$2"
+	shift 3
+	local args=(-p --model "$model" --effort "$effort" --name "$name" --output-format json)
+	[[ $* == *--permission-mode* ]] || args+=(--permission-mode "$PERMISSION_MODE")
+	[[ -z $MAX_BUDGET_USD ]] || args+=(--max-budget-usd "$MAX_BUDGET_USD")
+	args+=("$@")
+	if ((DRY)); then
+		say "would run: $CLAUDE_BIN ${args[*]} <prompt, ${#prompt} chars>"
+		return 0
+	fi
+	mkdir -p "$LOGS"
+	local log
+	log="$LOGS/$name-$(date +%Y%m%d-%H%M%S).log"
+	say "running $name on $model ($effort effort), log in ${log#"$ROOT"/}"
+	# The prompt goes on stdin: a list flag like --allowedTools would take a
+	# trailing argument as one more tool.
+	"$CLAUDE_BIN" "${args[@]}" <<<"$prompt" >"$log" || true
+	if ! jq -e . "$log" >/dev/null 2>&1; then
+		say "$name gave no result, see ${log#"$ROOT"/}"
+		return 0
+	fi
+	local line
+	line=$(jq -r --arg name "$name" --arg model "$model" --arg effort "$effort" '[
+		(now | strftime("%Y-%m-%d %H:%M")), $name, $model, $effort,
+		((.usage.input_tokens // 0) + (.usage.cache_creation_input_tokens // 0) + (.usage.cache_read_input_tokens // 0)),
+		(.usage.output_tokens // 0), (.total_cost_usd // 0 | . * 100 | round / 100),
+		(.num_turns // 0), ((.duration_ms // 0) / 1000 | round)] | @tsv' "$log")
+	[[ -f $LOGS/usage.tsv ]] || printf 'when\tsession\tmodel\teffort\ttokens_in\ttokens_out\tapi_usd\tturns\tseconds\n' >"$LOGS/usage.tsv"
+	echo "$line" >>"$LOGS/usage.tsv"
+	local f
+	IFS=$'\t' read -r -a f <<<"$line"
+	say "$name used ${f[4]} tokens in, ${f[5]} out, ${f[7]} turns, ${f[8]}s (\$${f[6]} at API prices)"
+	jq -r '.result // ""' "$log"
+}
+
+changed_files() {
+	{
+		git diff --name-only "$1" HEAD
+		git diff --name-only HEAD
+		git ls-files --others --exclude-standard
+	} | sort -u
+}
+
+# review_reason TIER FILES prints why the change needs a review, or nothing.
+review_reason() {
+	local t
+	for t in $REVIEW_TIERS; do
+		[[ $1 == "$t" ]] && {
+			echo "tier $1"
+			return
+		}
+	done
+	local p
+	for p in $REVIEW_PATHS; do
+		if grep -q "^$p" <<<"$2"; then
+			echo "touches $p"
+			return
+		fi
+	done
+}
+
+REASON=""
+# verify TASK BASE returns 0 when the task is done and checked, 3 when
+# blocked, 1 otherwise with REASON set.
+verify() {
+	local json status
+	json=$(task_json "$1")
+	status=$(jq -r '.status' <<<"$json")
+	if [[ $status == Blocked ]]; then
+		REASON="blocked: $(jq -r '(.comments // []) | last | .body // "see the task comments"' <<<"$json")"
+		return 3
+	fi
+	if [[ $status != Done ]]; then
+		REASON="the task is $status, not Done"
+		return 1
+	fi
+	if [[ $(jq '.acceptanceCriteriaCompleted < .acceptanceCriteriaCount' <<<"$json") == true ]]; then
+		REASON="not every acceptance criterion is ticked"
+		return 1
+	fi
+	if [[ -n $(git status --porcelain) ]]; then
+		REASON="the worker left uncommitted changes"
+		return 1
+	fi
+	say "running checks"
+	if ! changed_files "$2" | run_checks; then
+		REASON="the checks failed"
+		return 1
+	fi
+	return 0
+}
+
+run_worker() { # TASK TIER EXTRA
+	launch "$1-tier$2" "$(setting "TIER_$2")" \
+		"$(render worker.md TASK "$1" ASSIGNEE "$ASSIGNEE" EXTRA "$3")" >/dev/null
+}
+
+run_review() { # TASK BASE -> 0 pass, 1 changes (FINDINGS set)
+	local reply
+	reply=$(launch "$1-review" "$(setting REVIEWER)" \
+		"$(render reviewer.md TASK "$1" TASKTEXT "$(backlog task view "$1" --plain)" DIFF "$(git diff "$2" HEAD)")" \
+		--permission-mode dontAsk --allowedTools Read,Grep,Glob)
+	FINDINGS=$reply
+	[[ $(tail -n 1 <<<"$reply") == "VERDICT: pass" ]]
+}
+
+# hand_over TASK WHY CODE marks the task Blocked with WHY as a comment, so the
+# board shows it, and exits with CODE.
+hand_over() {
+	if ((!DRY)); then
+		backlog task edit "$1" -s Blocked --comment "agents: $2" --comment-author "$ASSIGNEE" >/dev/null || true
+	fi
+	die "$1 needs you: $2" "$3"
+}
+
+run_task() {
+	local id=$1 json status tier
+	json=$(task_json "$id") || die "can't read $id"
+	status=$(jq -r '.status' <<<"$json")
+	tier=$(jq -r '[(.labels // [])[] | select(startswith("tier:")) | ltrimstr("tier:")] | first // ""' <<<"$json")
+	[[ $status == "To Do" || $status == "Run" || $status == "In Progress" ]] || die "$id is $status" 3
+	[[ -n $tier ]] || hand_over "$id" "it has no tier label: run make plan M=$(jq -r '.milestone // "<milestone>"' <<<"$json")" 3
+
+	if ((DRY)); then
+		say "$id: $(jq -r '.title' <<<"$json")"
+		say "tier $tier: $(setting "TIER_$tier")"
+		local always
+		always=$(review_reason "$tier" "")
+		say "review: ${always:-only if the change touches a review path}"
+		run_worker "$id" "$tier" ""
+		return 0
+	fi
+
+	# Moving a card on the board edits its file, so changes under backlog/
+	# are fine. The worker's commit takes them along.
+	local dirty
+	dirty=$(git status --porcelain | grep -vE '^.. "?backlog/' || true)
+	[[ -z $dirty ]] || hand_over "$id" "the working tree has changes outside backlog/: commit or stash them, then move the card back" 2
+	local base start rc
+	base=$(git rev-parse HEAD)
+	start=$(date +%s)
+	# Off the Run column first, so a watcher never starts it twice.
+	backlog task edit "$id" -s "In Progress" -a "$ASSIGNEE" >/dev/null
+
+	run_worker "$id" "$tier" ""
+	rc=0
+	verify "$id" "$base" || rc=$?
+	if ((rc == 1 && tier < 4)); then
+		say "$id stopped short on tier $tier: $REASON. Retrying on tier $((tier + 1))"
+		tier=$((tier + 1))
+		run_worker "$id" "$tier" "
+A worker on a lower tier already tried this task and stopped short: $REASON.
+Pick up from the current state of the repo and the task's notes."
+		rc=0
+		verify "$id" "$base" || rc=$?
+	fi
+	((rc == 3)) && die "$id needs you: $REASON" 3
+	((rc == 0)) || hand_over "$id" "it failed on tier $tier: $REASON" 1
+
+	local why review="skipped"
+	why=$(review_reason "$tier" "$(changed_files "$base")")
+	if [[ -n $why ]]; then
+		say "reviewing ($why)"
+		if run_review "$id" "$base"; then
+			review="passed"
+		else
+			say "the review asked for changes; sending them to the worker"
+			run_worker "$id" "$tier" "
+The task is Done, but a reviewer asked for these changes. Fix them, run the checks again, keep the task Done, and commit:
+
+$FINDINGS"
+			rc=0
+			verify "$id" "$base" || rc=$?
+			((rc == 0)) || hand_over "$id" "it failed after review fixes: $REASON" 1
+			run_review "$id" "$base" || hand_over "$id" "the reviewer still has findings:
+$FINDINGS" 3
+			review="passed after fixes"
+		fi
+	fi
+
+	say "$id done on tier $tier in $(($(date +%s) - start))s, review $review"
+	git log --oneline "$base..HEAD" >&2
+}
+
+next_task() {
+	local m id
+	for m in $(backlog milestone list --plain | sed -nE 's/^[[:space:]]+(m-[0-9]+):.*/\1/p'); do
+		id=$(backlog task list --json --status "To Do" -m "$m" |
+			jq -r '[.tasks[] | select(.isReady)] | sort_by(.ordinal) | first | .id // empty')
+		[[ -n $id ]] && {
+			echo "$id"
+			return
+		}
+	done
+	return 0
+}
+
+run_plan() {
+	local m=$1
+	((DRY)) || [[ -z $(git status --porcelain) ]] || die "the working tree has changes: commit or stash them first" 2
+	launch "plan-$m" "$(setting PLANNER)" "$(render planner.md MILESTONE "$m" EXTRA "")"
+	((DRY)) && return 0
+	local untiered
+	untiered=$(backlog task list --json --status "To Do" -m "$m" |
+		jq -r '.tasks[] | select([(.labels // [])[] | startswith("tier:")] | any | not) | .id')
+	[[ -z $untiered ]] || say "still without a tier: ${untiered//$'\n'/ }"
+}
+
+# watch runs each card moved to the Run column, oldest first, one at a time.
+# It costs nothing while it waits.
+watch() {
+	say "watching for cards in Run (Ctrl+C to stop)"
+	local id
+	while true; do
+		id=$(backlog task list --json --status Run | jq -r '[.tasks[]] | sort_by(.ordinal) | first | .id // empty')
+		if [[ -n $id ]]; then
+			(run_task "$id") || true
+			say "watching for cards in Run"
+		fi
+		sleep "${WATCH_SECONDS:-5}"
+	done
+}
+
+case $MODE in
+task) run_task "$ARG" ;;
+watch) watch ;;
+next)
+	id=$(next_task)
+	[[ -n $id ]] || die "no ready To Do task" 0
+	run_task "$id"
+	;;
+plan) run_plan "$ARG" ;;
+esac

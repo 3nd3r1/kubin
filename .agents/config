@@ -1,0 +1,52 @@
+# Settings for .agents/run in this repo. Sourced by bash.
+# Everything else in .agents/ is generic; this file and the CLAUDE.md
+# Workflow section are what another repo changes.
+
+# "model effort" per tier. Full model IDs, so an alias moving to a new model
+# doesn't change what a tier runs on.
+TIER_1="claude-haiku-5-5 low"
+TIER_2="claude-sonnet-5-5 low"
+TIER_3="claude-sonnet-5-5 medium"
+TIER_4="claude-opus-5-5 medium"
+PLANNER="claude-opus-5-5 high"
+REVIEWER="claude-opus-5-5 medium"
+
+# Tiers whose work is always reviewed.
+REVIEW_TIERS="4"
+# A change touching any of these paths is reviewed at every tier: the
+# CLI-to-server contract, the API, and everything that decides what leaves
+# the cluster.
+REVIEW_PATHS="
+docs/snapshot-format.md
+cli/pkg/collector/
+cli/pkg/redact/
+cli/pkg/snapshot/
+server/internal/snapshot/
+server/internal/api/
+"
+
+# Permission mode for headless sessions (claude --permission-mode).
+PERMISSION_MODE="auto"
+# Dollar cap per session (claude --max-budget-usd). Empty means none.
+MAX_BUDGET_USD=""  # leave empty on a subscription
+
+# Name agents put in the Backlog assignee field.
+ASSIGNEE="@claude"
+
+# run_checks gets the changed files, one per line, on stdin and runs the
+# checks for the parts they touch. Non-zero means the task is not done.
+run_checks() {
+	local files
+	files=$(cat)
+	local status=0
+	if grep -q '^cli/' <<<"$files"; then
+		nix-shell --run 'cd cli && go test ./... && golangci-lint run ./...' || status=1
+	fi
+	if grep -q '^server/' <<<"$files"; then
+		nix-shell --run 'cd server && make test && make lint' || status=1
+	fi
+	if grep -q '^ui/' <<<"$files"; then
+		nix-shell --run 'cd ui && make lint && make typecheck && make test' || status=1
+	fi
+	return $status
+}
