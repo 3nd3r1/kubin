@@ -1,8 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+
+import { useSearchParams } from "react-router";
 
 import { type LogFile, type Manifest, getLog } from "@/lib/api";
 import type { Pod } from "@/lib/k8s";
-import { defaultLog, errorLine, podLogs } from "@/lib/logs";
+import {
+    defaultLog,
+    errorLine,
+    formatLogParams,
+    parseLogParams,
+    podLogs,
+    visibleRange,
+} from "@/lib/logs";
 import { useFetch } from "@/lib/use-fetch";
 import { cn } from "@/lib/utils";
 
@@ -24,15 +33,32 @@ export function PodLogs({
 }) {
     const logs = useMemo(() => podLogs(manifest, pod), [manifest, pod]);
     const initial = useMemo(() => defaultLog(pod, logs), [pod, logs]);
-    const [selected, setSelected] = useState<LogFile | undefined>(
-        initial?.file
-    );
+    const [params, setParams] = useSearchParams();
+    const wanted = useMemo(() => parseLogParams(params), [params]);
+    const fromUrl = useMemo(() => {
+        const c = logs.find((l) => l.container === wanted.container);
+        return c && (wanted.previous ? c.previous : c.current);
+    }, [logs, wanted]);
+    const selected = fromUrl ?? initial?.file;
+    const line = fromUrl ? wanted.line : undefined;
     const section = useRef<HTMLElement>(null);
 
+    const select = (f: LogFile, n?: number) =>
+        setParams(
+            formatLogParams(params, {
+                container: f.container,
+                previous: f.previous,
+                line: n,
+            }),
+            { replace: true, preventScrollReset: true }
+        );
+
     useEffect(() => {
-        if (initial?.crashing) {
+        if (initial?.crashing && !fromUrl) {
             section.current?.scrollIntoView({ block: "start" });
         }
+        // Only on arrival: choosing a log later must not scroll the page.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initial]);
 
     let body;
@@ -65,7 +91,7 @@ export function PodLogs({
                                 key={c.container}
                                 active={c.container === selected.container}
                                 onClick={() =>
-                                    setSelected((c.current ?? c.previous)!)
+                                    select((c.current ?? c.previous)!)
                                 }
                                 mono
                             >
@@ -81,13 +107,13 @@ export function PodLogs({
                         >
                             <Choice
                                 active={!selected.previous}
-                                onClick={() => setSelected(current.current!)}
+                                onClick={() => select(current.current!)}
                             >
                                 Current
                             </Choice>
                             <Choice
                                 active={selected.previous}
-                                onClick={() => setSelected(current.previous!)}
+                                onClick={() => select(current.previous!)}
                             >
                                 Previous run
                             </Choice>
@@ -98,6 +124,8 @@ export function PodLogs({
                     snapshotId={snapshotId}
                     file={selected}
                     tailLines={manifest.logs.tail_lines}
+                    line={line}
+                    onLine={(n) => select(selected, n)}
                 />
             </div>
         );
@@ -147,27 +175,54 @@ function Choice({
     );
 }
 
+const LINE_HEIGHT = 20;
+const OVERSCAN = 20;
+const MAX_HEIGHT = 512;
+
 function LogView({
     snapshotId,
     file,
     tailLines,
+    line,
+    onLine,
 }: {
     snapshotId: string;
     file: LogFile;
     tailLines: number;
+    line?: number;
+    onLine: (n: number) => void;
 }) {
     const state = useFetch(
         (signal) => getLog(snapshotId, file, signal),
         [snapshotId, file.namespace, file.pod, file.container, file.previous]
     );
-    const pre = useRef<HTMLPreElement>(null);
+    const box = useRef<HTMLDivElement>(null);
+    const [scrollTop, setScrollTop] = useState(0);
+    const [viewport, setViewport] = useState(MAX_HEIGHT);
 
-    // The end of a log is where a crash shows up.
-    useEffect(() => {
-        if (state.status === "ok" && pre.current) {
-            pre.current.scrollTop = pre.current.scrollHeight;
-        }
-    }, [state]);
+    const lines = useMemo(
+        () =>
+            state.status === "ok" && state.data !== ""
+                ? state.data.replace(/\n$/, "").split("\n")
+                : [],
+        [state]
+    );
+    const height = Math.min(MAX_HEIGHT, lines.length * LINE_HEIGHT + 16);
+
+    // Without a line, open at the end, where a crash shows up. With one,
+    // centre it. Changing line alone moves the view but doesn't refetch.
+    useLayoutEffect(() => {
+        const el = box.current;
+        if (!el || lines.length === 0) return;
+        const target =
+            line === undefined
+                ? el.scrollHeight
+                : (Math.min(line, lines.length) - 1) * LINE_HEIGHT -
+                  (el.clientHeight - LINE_HEIGHT) / 2;
+        el.scrollTop = Math.max(0, target);
+        setScrollTop(el.scrollTop);
+        setViewport(el.clientHeight);
+    }, [lines, line]);
 
     switch (state.status) {
         case "loading":
@@ -181,7 +236,14 @@ function LogView({
         return <Empty>This container wrote nothing to its log.</Empty>;
     }
 
-    const lines = state.data.replace(/\n$/, "").split("\n");
+    const { start, end } = visibleRange(
+        scrollTop,
+        viewport,
+        LINE_HEIGHT,
+        lines.length,
+        OVERSCAN
+    );
+    const digits = String(lines.length).length;
     return (
         <div className="space-y-1">
             {file.truncated && (
@@ -190,25 +252,60 @@ function LogView({
                     Older lines weren't captured.
                 </p>
             )}
-            <pre
-                ref={pre}
+            <div
+                ref={box}
+                role="log"
                 aria-label={`${file.container} ${file.previous ? "previous " : ""}log`}
                 tabIndex={0}
-                className="bg-muted max-h-[32rem] overflow-auto rounded-lg p-4 font-mono text-xs leading-relaxed"
+                style={{ height }}
+                onScroll={(e) => {
+                    setScrollTop(e.currentTarget.scrollTop);
+                    setViewport(e.currentTarget.clientHeight);
+                }}
+                className="bg-muted overflow-auto rounded-lg font-mono text-xs"
             >
-                {lines.map((l, i) => (
+                <div
+                    className="relative w-max min-w-full"
+                    style={{
+                        height: lines.length * LINE_HEIGHT + 16,
+                        paddingTop: 8,
+                    }}
+                >
                     <div
-                        key={i}
-                        className={cn(
-                            "whitespace-pre-wrap break-all",
-                            errorLine.test(l) &&
-                                "-mx-4 bg-red-500/10 px-4 text-red-700 dark:text-red-300"
-                        )}
+                        style={{
+                            transform: `translateY(${start * LINE_HEIGHT}px)`,
+                        }}
                     >
-                        {l || " "}
+                        {lines.slice(start, end).map((l, k) => {
+                            const n = start + k + 1;
+                            return (
+                                <div
+                                    key={n}
+                                    style={{ height: LINE_HEIGHT }}
+                                    className={cn(
+                                        "flex items-center whitespace-pre pr-4 leading-5",
+                                        errorLine.test(l) &&
+                                            "bg-red-500/10 text-red-700 dark:text-red-300",
+                                        n === line &&
+                                            "bg-yellow-400/30 text-foreground"
+                                    )}
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={() => onLine(n)}
+                                        aria-label={`Link to line ${n}`}
+                                        style={{ minWidth: `${digits + 2}ch` }}
+                                        className="text-muted-foreground hover:text-foreground sticky left-0 shrink-0 select-none bg-inherit px-2 text-right"
+                                    >
+                                        {n}
+                                    </button>
+                                    <span className="pl-2">{l || " "}</span>
+                                </div>
+                            );
+                        })}
                     </div>
-                ))}
-            </pre>
+                </div>
+            </div>
         </div>
     );
 }

@@ -83,3 +83,56 @@ export function defaultLog(
 /** Lines that read like an error, to highlight them in a log. */
 export const errorLine =
     /\b(error|err|fatal|panic|exception|failed|failure|traceback)\b/i;
+
+/** The log chosen in the pod URL: `?container={name}&previous=1&line={n}`. */
+export type LogParams = {
+    container?: string;
+    previous: boolean;
+    line?: number;
+};
+
+export function parseLogParams(params: URLSearchParams): LogParams {
+    const raw = params.get("line");
+    const n = raw && /^\d+$/.test(raw) ? Number(raw) : 0;
+    return {
+        container: params.get("container") || undefined,
+        previous: params.get("previous") === "1",
+        line: n >= 1 ? n : undefined,
+    };
+}
+
+/** The params with the log selection replaced; other params are kept. */
+export function formatLogParams(
+    params: URLSearchParams,
+    p: { container: string; previous: boolean; line?: number }
+): URLSearchParams {
+    const next = new URLSearchParams(params);
+    next.set("container", p.container);
+    if (p.previous) next.set("previous", "1");
+    else next.delete("previous");
+    if (p.line !== undefined && p.line >= 1) next.set("line", String(p.line));
+    else next.delete("line");
+    return next;
+}
+
+/**
+ * The lines to render for a scrolled viewport of fixed-height lines: the
+ * visible ones plus `overscan` on each side. start is inclusive, end is
+ * exclusive.
+ */
+export function visibleRange(
+    scrollTop: number,
+    viewportHeight: number,
+    lineHeight: number,
+    lineCount: number,
+    overscan: number
+): { start: number; end: number } {
+    if (lineCount <= 0 || lineHeight <= 0) return { start: 0, end: 0 };
+    const first = Math.floor(Math.max(0, scrollTop) / lineHeight);
+    const last = Math.ceil(
+        (Math.max(0, scrollTop) + viewportHeight) / lineHeight
+    );
+    const start = Math.min(Math.max(0, first - overscan), lineCount);
+    const end = Math.min(lineCount, Math.max(start, last + overscan));
+    return { start, end };
+}

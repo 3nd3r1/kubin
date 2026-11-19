@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import type { LogFile, Manifest } from "./api";
 import type { ContainerStatus, Pod } from "./k8s";
-import { defaultLog, podLogs } from "./logs";
+import {
+    defaultLog,
+    formatLogParams,
+    parseLogParams,
+    podLogs,
+    visibleRange,
+} from "./logs";
 
 function file(container: string, previous = false, pod = "api-1"): LogFile {
     return { namespace: "shop", pod, container, previous, truncated: false };
@@ -133,5 +139,66 @@ describe("defaultLog", () => {
 
     it("has nothing to open without logs", () => {
         expect(defaultLog(pod(statuses(crashLoop)), [])).toBeUndefined();
+    });
+});
+
+describe("visibleRange", () => {
+    const n = 50000;
+    it("covers the top", () => {
+        expect(visibleRange(0, 500, 20, n, 10)).toEqual({ start: 0, end: 35 });
+    });
+    it("covers the middle", () => {
+        expect(visibleRange(20000, 500, 20, n, 10)).toEqual({
+            start: 990,
+            end: 1035,
+        });
+    });
+    it("covers the end", () => {
+        const top = n * 20 - 500;
+        expect(visibleRange(top, 500, 20, n, 10)).toEqual({
+            start: 49965,
+            end: n,
+        });
+    });
+    it("is empty for an empty log", () => {
+        expect(visibleRange(0, 500, 20, 0, 10)).toEqual({ start: 0, end: 0 });
+    });
+});
+
+describe("log params", () => {
+    it("parses the selection", () => {
+        expect(
+            parseLogParams(
+                new URLSearchParams("container=app&previous=1&line=42")
+            )
+        ).toEqual({ container: "app", previous: true, line: 42 });
+        expect(parseLogParams(new URLSearchParams(""))).toEqual({
+            container: undefined,
+            previous: false,
+            line: undefined,
+        });
+    });
+    it("ignores a bad line", () => {
+        for (const v of ["0", "-3", "x", "1.5", ""]) {
+            expect(
+                parseLogParams(new URLSearchParams({ line: v })).line
+            ).toBeUndefined();
+        }
+    });
+    it("formats the selection and keeps other params", () => {
+        const base = new URLSearchParams("x=1&previous=1&line=3");
+        expect(
+            formatLogParams(base, {
+                container: "app",
+                previous: false,
+            }).toString()
+        ).toBe("x=1&container=app");
+        expect(
+            formatLogParams(base, {
+                container: "app",
+                previous: true,
+                line: 7,
+            }).toString()
+        ).toBe("x=1&previous=1&line=7&container=app");
     });
 });

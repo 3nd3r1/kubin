@@ -1,10 +1,11 @@
 ---
 id: TASK-17
 title: Log viewer that handles large logs and links to a line
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@claude'
 created_date: '2026-11-17T10:05:00Z'
-updated_date: '2026-11-19T11:42:00Z'
+updated_date: '2026-11-19T12:19:00Z'
 labels:
   - ui
   - tier:3
@@ -50,14 +51,20 @@ Reading logs is the main thing people do with a shared snapshot. m-0 built the v
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The log view renders only the lines in view plus a margin; `visibleRange` in `ui/src/lib/logs.ts` is tested for the top, middle and end of a 50,000-line log and for an empty log
-- [ ] #2 Each line shows its number; clicking it puts `container`, `previous` and `line` in the pod URL, and opening such a URL selects that container and run, scrolls to the line and highlights it; the URL helpers are tested
-- [ ] #3 Without `line` in the URL the viewer opens the log `defaultLog` picks, scrolled to the end, as today
-- [ ] #4 Error-line highlighting and the truncated notice still work
+- [x] #1 The log view renders only the lines in view plus a margin; `visibleRange` in `ui/src/lib/logs.ts` is tested for the top, middle and end of a 50,000-line log and for an empty log
+- [x] #2 Each line shows its number; clicking it puts `container`, `previous` and `line` in the pod URL, and opening such a URL selects that container and run, scrolls to the line and highlights it; the URL helpers are tested
+- [x] #3 Without `line` in the URL the viewer opens the log `defaultLog` picks, scrolled to the end, as today
+- [x] #4 Error-line highlighting and the truncated notice still work
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 `nix-shell --run 'cd ui && make lint && make typecheck && make test && make build'` passes
-- [ ] #2 The task's commits change nothing under `server/`, `cli/` or `docs/snapshot-format.md` (check with `git log --stat`)
+- [x] #1 `nix-shell --run 'cd ui && make lint && make typecheck && make test && make build'` passes
+- [x] #2 The task's commits change nothing under `server/`, `cli/` or `docs/snapshot-format.md` (check with `git log --stat`)
 <!-- DOD:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Log view is now windowed: fixed 20px non-wrapping rows, only visible lines plus 20 overscan are rendered (visibleRange, tested on 50k lines and empty). Line numbers are buttons that write container/previous/line to the pod URL (replace history, no scroll reset); URL selection wins over defaultLog and the crash scroll; line scrolls to and highlights; no line scrolls to the end. useFetch deps unchanged so line does not refetch. Truncated notice and error highlighting kept. Checks: lint, typecheck, test (48), build pass. Not exercised in a browser; scroll and click behavior is unverified beyond types and helper tests.
+<!-- SECTION:FINAL_SUMMARY:END -->
