@@ -25,7 +25,8 @@ Pastebin for Kubernetes clusters: `kubin create` packs the cluster into a tarbal
   - If it blocks the work at hand, ask in chat as one question with a recommendation, and record the answer with `backlog decision create -s accepted`.
   - If it can wait, record it as a `proposed` decision (context, recommended choice, consequences) and keep working on something it doesn't block. The user sets it to `accepted` or `rejected: <why>`.
   - At the start of a session, check `backlog decision list --plain` and act on answered proposals.
-- Agents own the tasks: create, split, update, close them and pick their milestone without asking. When starting a task, set its assignee to the agent doing the work (`@codex`, `@opencode` or `@claude`); these are Backlog labels, not automatic routing. For example, run `backlog task edit TASK-123 -s "In Progress" -a @codex` when Codex takes the task. Use multiple assignees only when agents are sharing the work.
+- Tasks run through `.agents/run` (decision-6, `.agents/README.md`). The planner creates, splits and tiers tasks and picks their milestone without asking. A worker does one task and never creates tasks: work it finds outside its task goes in `backlog draft create`. A worker that needs a design or direction call comments on the task, sets it to Blocked and stops.
+- When starting a task, set its assignee to the agent doing the work (`@codex`, `@opencode` or `@claude`). These are Backlog labels, not routing.
 - Work the current milestone. Build only what it needs.
 - Commits: `feat:`, `fix:`, `chore:`, `docs:`, `build:`, `test:`, optional scope like `feat(cli):`. Short subject, no body, no trailers.
 
