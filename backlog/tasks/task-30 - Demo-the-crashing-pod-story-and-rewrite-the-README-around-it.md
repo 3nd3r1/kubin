@@ -3,10 +3,9 @@ id: TASK-30
 title: Demo the crashing-pod story and rewrite the README around it
 status: In Progress
 assignee:
-  - '@claude'
   - '@human'
 created_date: '2026-11-17T14:08:00Z'
-updated_date: '2026-11-19T11:36:00Z'
+updated_date: '2026-11-19T14:54:00Z'
 labels:
   - docs
 milestone: m-0
