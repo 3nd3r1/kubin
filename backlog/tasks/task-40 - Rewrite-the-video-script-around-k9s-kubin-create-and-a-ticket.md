@@ -1,10 +1,11 @@
 ---
 id: TASK-40
 title: 'Rewrite the video script: is this familiar, kubin create, a ticket link'
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@claude'
 created_date: '2026-11-19T14:46:00Z'
-updated_date: '2026-11-19T14:50:00Z'
+updated_date: '2026-11-19T15:07:00Z'
 labels:
   - docs
   - tier:2
@@ -58,16 +59,22 @@ Beats, in order:
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `demo/video-script.md` follows the beats in the description, in order, with Screen and Say for each section
-- [ ] #2 The section time ranges start at 0:00 and end between 1:10 and 1:20
-- [ ] #3 A Say line states that secrets and env var values stay out of the snapshot
-- [ ] #4 The UI part shows only the overview, one pod's logs and the kind sidebar; `grep -niE "configmap|root cause|selects no pods" demo/video-script.md` finds no walkthrough of a root cause
-- [ ] #5 Every resource name and command in the script exists in `demo/checkout.yaml` or `demo/setup.sh`, and `grep -n "payment-api\|run.sh" demo/video-script.md` finds nothing outside the closing self-host line
-- [ ] #6 The "Don't claim" section matches the README's "What does not" and drops things that now exist
+- [x] #1 `demo/video-script.md` follows the beats in the description, in order, with Screen and Say for each section
+- [x] #2 The section time ranges start at 0:00 and end between 1:10 and 1:20
+- [x] #3 A Say line states that secrets and env var values stay out of the snapshot
+- [x] #4 The UI part shows only the overview, one pod's logs and the kind sidebar; `grep -niE "configmap|root cause|selects no pods" demo/video-script.md` finds no walkthrough of a root cause
+- [x] #5 Every resource name and command in the script exists in `demo/checkout.yaml` or `demo/setup.sh`, and `grep -n "payment-api\|run.sh" demo/video-script.md` finds nothing outside the closing self-host line
+- [x] #6 The "Don't claim" section matches the README's "What does not" and drops things that now exist
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 The task's commit changes only `demo/video-script.md` (check with `git show --stat HEAD`)
-- [ ] #2 If the demo was started to check the clicks, it is torn down (`docker rm -f kubin-demo; kind delete cluster --name kubin-demo`)
+- [x] #1 The task's commit changes only `demo/video-script.md` (check with `git show --stat HEAD`)
+- [x] #2 If the demo was started to check the clicks, it is torn down (`docker rm -f kubin-demo; kind delete cluster --name kubin-demo`)
 <!-- DOD:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Rewrote demo/video-script.md around k9s, kubin create and a Linear ticket link. Six sections, 0:00 to 1:15. Not run against a live demo; UI views checked against source.
+<!-- SECTION:FINAL_SUMMARY:END -->

@@ -1,44 +1,48 @@
 # Narrated demo video
 
-About 75 seconds. Screen recording with your face in a corner bubble. Show the payoff in the first 10 seconds, and burn in captions because most people watch muted.
+About 75 seconds. Screen recording with your face in a corner bubble. Show the broken cluster in the first 10 seconds, and burn in captions because most people watch muted.
 
-Before recording, run `./demo/run.sh` and leave the terminal on the printed link. Clear the browser history so the URL bar doesn't suggest anything. Set the browser zoom to 125% so the text is readable in a small player.
+Before recording, run `./demo/setup.sh`. It builds the cluster and the server but takes no snapshot. Run the `export` line it prints in a second terminal, so `kubin` is on the path, then open `k9s -n checkout` in the first one and wait until it shows `api` in CrashLoopBackOff, `postgres-0` Pending and `worker` failed. Have a Linear ticket open in a browser tab with the title and description empty. Clear the browser history so the URL bar doesn't suggest anything. Set the browser zoom to 125% so the text is readable in a small player.
 
-## 1. Hook (0:00–0:10)
+## 1. Is this familiar? (0:00–0:12)
 
-**Screen:** the snapshot page is already open on the `payment-api` logs, with `cannot connect to postgres at db:5432` visible.
+**Screen:** k9s on namespace `checkout`. Pods listed: `api` in CrashLoopBackOff, `postgres-0` Pending. Press `:jobs` or switch to kubectl to show `worker` failed.
 
-**Say:** "This pod is crash-looping in my cluster. You're looking at its logs, its events and its status, and you don't have access to my cluster. All I sent you was a link."
+**Say:** "Is this familiar? Something is broken in your cluster. The API is crash-looping, the database is pending, and a job failed."
 
-## 2. The problem (0:10–0:25)
+## 2. The ticket (0:12–0:28)
 
-**Screen:** your face bubble, a bit bigger, or a Slack thread with pasted `kubectl` output.
+**Screen:** the empty Linear ticket. Hover over the description. Optionally flash a scrolling wall of `kubectl describe` output.
 
-**Say:** "When something breaks, people paste `kubectl describe` into Slack, attach log files to tickets, or screen-share for an hour. Whoever helps you only sees what you remembered to copy."
+**Say:** "Now you need a ticket, and whoever picks it up needs logs. So you copy `kubectl describe`, then a huge log dump, and paste it all in. Half of it is noise, and you still forgot something."
 
-## 3. One command (0:25–0:40)
+## 3. One command (0:28–0:43)
 
-**Screen:** the terminal. Run `kubin create --server http://localhost:8080`, or scroll back to the output of `run.sh`.
+**Screen:** the terminal. Run `kubin create`. The link prints within a few seconds.
 
-**Say:** "Kubin is a pastebin for clusters. `kubin create` captures the cluster: pods, events and the last lines of every container log. It uploads that and prints a link. Secrets and env var values stay out of the snapshot."
+**Say:** "Instead, one command. `kubin create` captures everything in the cluster that isn't secret and prints a link, in seconds. Secrets and env var values stay out of the snapshot."
 
-## 4. Click around (0:40–1:05)
+## 4. Paste the link (0:43–0:50)
+
+**Screen:** copy the link, paste it into the Linear ticket, and save it.
+
+**Say:** "Paste the link into the ticket. That's the whole report."
+
+## 5. A quick look (0:50–1:08)
 
 **Screen:**
-1. Open the link. Point at "1 pod needs attention".
-2. Click `payment-api`. The page jumps to the logs.
-3. Click "Previous run" and show it's the same error, so it isn't a fluke.
-4. Scroll to the BackOff warning in Events.
-5. Scroll to the YAML.
+1. Open the link from the ticket. The overview shows the problems first.
+2. Click the `api` pod. The page lands on its logs.
+3. Point at the kind sidebar on the left. Stop there.
 
-**Say:** "Broken things come first. Click the pod and you land on its logs: it can't reach Postgres. The previous run says the same thing, the events show Kubernetes backing off, and the full spec is below. That's the whole debugging session, frozen at the moment I ran the command."
+**Say:** "Whoever opens the ticket sees what's broken first. Click the pod and you're in its logs. The rest of the cluster is in the sidebar, by kind. They never needed access to my cluster."
 
-## 5. Self-host and close (1:05–1:15)
+## 6. Self-host and close (1:08–1:15)
 
-**Screen:** the README, showing the three commands.
+**Screen:** the README, showing the self-hosting commands.
 
-**Say:** "It's one container. `docker run` with a volume and you have your own. Clone the repo, run `demo/run.sh`, and you get exactly this. Links are in the description."
+**Say:** "It's one container. `docker run` with a volume and you have your own. Links are in the description."
 
 ## Don't claim
 
-These aren't built yet, so the video shouldn't promise them: other workloads, services or nodes; choosing what to capture; auth or private links; expiry; a hosted instance. See the "What does not" section of the README.
+These aren't built yet, so the video shouldn't promise them: authentication or private links; expiry; a hosted instance; a published release image. Don't say it explains why something broke. See the "What does not" section of the README.
