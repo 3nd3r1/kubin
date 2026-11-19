@@ -4,6 +4,7 @@ title: Broken checkout app manifests for the demo
 status: To Do
 assignee: []
 created_date: '2026-11-19T14:44:00Z'
+updated_date: '2026-11-19T14:50:00Z'
 labels:
   - demo
   - tier:2
@@ -70,3 +71,9 @@ Checked by the planner on 2026-11-19 on kind 0.33 with node image kindest/node:v
 - [ ] #1 Checked on a fresh cluster (`kind create cluster --name kubin-checkout-test --wait 2m`), with the commands and their output in the implementation notes, and the cluster deleted afterwards (`kind delete cluster --name kubin-checkout-test`)
 - [ ] #2 The task's commit changes only `demo/checkout.yaml` (check with `git show --stat HEAD`)
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Planner, 2026-11-19: the video no longer walks through root causes (see TASK-40). The cluster only needs to look realistically broken: a crash-looping pod with a log, a Pending pod, a failed Job. The spec above still stands.
+<!-- SECTION:NOTES:END -->

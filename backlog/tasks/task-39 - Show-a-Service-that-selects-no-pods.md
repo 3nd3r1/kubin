@@ -4,10 +4,11 @@ title: Show a Service that selects no pods
 status: To Do
 assignee: []
 created_date: '2026-11-19T14:45:00Z'
+updated_date: '2026-11-19T14:50:00Z'
 labels:
   - ui
   - tier:3
-milestone: m-0
+milestone: m-2
 dependencies: []
 references:
   - ui/src/lib/relations.ts
