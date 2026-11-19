@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/3nd3r1/kubin/cli/pkg/collector"
-	"github.com/3nd3r1/kubin/cli/pkg/kube"
+	"github.com/3nd3r1/kubin/cli/pkg/kube/kubetest"
 	"github.com/3nd3r1/kubin/cli/pkg/redact"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,9 +22,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/version"
-	fakediscovery "k8s.io/client-go/discovery/fake"
-	"k8s.io/client-go/kubernetes/fake"
 )
 
 // readArchive returns the entry names in order and their contents.
@@ -52,7 +49,7 @@ func readArchive(t *testing.T, data []byte) ([]string, map[string][]byte) {
 
 func TestCreateWritesLayout(t *testing.T) {
 	managed := []metav1.ManagedFieldsEntry{{Manager: "kubectl", Operation: metav1.ManagedFieldsOperationApply}}
-	cs := fake.NewClientset(
+	cs := kubetest.New(
 		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}},
 		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "prod"}},
 		// Same name in two namespaces: both must be kept.
@@ -60,9 +57,8 @@ func TestCreateWritesLayout(t *testing.T) {
 		&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: "prod", Name: "web", ManagedFields: managed}},
 		&corev1.Event{ObjectMeta: metav1.ObjectMeta{Namespace: "prod", Name: "web.17f3a"}, Reason: "BackOff"},
 	)
-	cs.Discovery().(*fakediscovery.FakeDiscovery).FakedServerVersion = &version.Info{GitVersion: "v1.33.1"}
 
-	mgr := NewManager(kube.NewFromClientset(cs, "kind-kubin", "kind-kubin"), "v0.0.0-test", Options{Logs: collector.DefaultLogOptions()})
+	mgr := NewManager(cs, "v0.0.0-test", Options{Logs: collector.DefaultLogOptions()})
 	created := time.Date(2026, 11, 17, 10, 0, 0, 0, time.UTC)
 	mgr.now = func() time.Time { return created }
 
@@ -111,7 +107,7 @@ func TestCreateWritesLayout(t *testing.T) {
 func TestCreateWritesLogs(t *testing.T) {
 	running := corev1.ContainerState{Running: &corev1.ContainerStateRunning{}}
 	crashed := corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{ExitCode: 1}}
-	cs := fake.NewClientset(&corev1.Pod{
+	cs := kubetest.New(&corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{Namespace: "prod", Name: "web"},
 		Spec: corev1.PodSpec{
 			InitContainers: []corev1.Container{{Name: "migrate"}},
@@ -126,9 +122,8 @@ func TestCreateWritesLogs(t *testing.T) {
 			},
 		},
 	})
-	cs.Discovery().(*fakediscovery.FakeDiscovery).FakedServerVersion = &version.Info{GitVersion: "v1.33.1"}
 
-	mgr := NewManager(kube.NewFromClientset(cs, "kind-kubin", "kind-kubin"), "v0.0.0-test", Options{Logs: collector.DefaultLogOptions()})
+	mgr := NewManager(cs, "v0.0.0-test", Options{Logs: collector.DefaultLogOptions()})
 	var buf bytes.Buffer
 	m, err := mgr.Create(context.Background(), &buf)
 	require.NoError(t, err)
@@ -153,6 +148,19 @@ func TestCreateWritesLogs(t *testing.T) {
 	var written Manifest
 	require.NoError(t, json.Unmarshal(files["manifest.json"], &written))
 	assert.Equal(t, m.Logs, written.Logs)
+
+	t.Run("skip logs", func(t *testing.T) {
+		mgr := NewManager(cs, "v0.0.0-test", Options{Logs: collector.DefaultLogOptions(), SkipLogs: true})
+		var buf bytes.Buffer
+		m, err := mgr.Create(context.Background(), &buf)
+		require.NoError(t, err)
+		names, _ := readArchive(t, buf.Bytes())
+		for _, n := range names {
+			assert.NotContains(t, n, "logs/")
+		}
+		assert.Contains(t, names, "resources/core/v1/Pod/prod/web.json")
+		assert.Empty(t, m.Logs.Files)
+	})
 }
 
 // staticCollector returns fixed resources, for kinds the CLI doesn't
@@ -206,14 +214,10 @@ func TestCreateKeepsSecretsOut(t *testing.T) {
 	}
 
 	create := func(t *testing.T, opts redact.Options) []byte {
-		cs := fake.NewClientset(pod)
-		cs.Discovery().(*fakediscovery.FakeDiscovery).FakedServerVersion = &version.Info{GitVersion: "v1.33.1"}
-		mgr := NewManager(kube.NewFromClientset(cs, "kind-kubin", "kind-kubin"), "v0.0.0-test",
+		cs := kubetest.New(pod, deploy)
+		mgr := NewManager(cs, "v0.0.0-test",
 			Options{Logs: collector.DefaultLogOptions(), Redact: opts})
-		mgr.collectors = append(mgr.collectors, staticCollector{
-			typed(t, "", "v1", "Secret", secret),
-			typed(t, "apps", "v1", "Deployment", deploy),
-		})
+		mgr.collectors = append(mgr.collectors, staticCollector{typed(t, "", "v1", "Secret", secret)})
 		var buf bytes.Buffer
 		_, err := mgr.Create(context.Background(), &buf)
 		require.NoError(t, err)

@@ -39,7 +39,7 @@ The core group is written as `core`. The full spec is [snapshot-format.md](snaps
 
 ## CLI (`cli/`)
 
-Go, cobra, client-go. `kubin create` uploads to `--server` or `KUBIN_SERVER` and prints the URL. `--output <file>` keeps the tarball instead, for air-gapped use. Collectors implement `collector.Collector` and return objects as `collector.Resource`. `collector.LogsCollector` then fetches the logs of the collected pods with a fixed worker pool, keeping the last `--log-tail` lines of each. `snapshot.Writer` puts them into the tarball layout, and `snapshot.Manager` runs the collectors and writes the manifest.
+Go, cobra, client-go. `kubin create` uploads to `--server` or `KUBIN_SERVER` and prints the URL. `--output <file>` keeps the tarball instead, for air-gapped use. Collectors implement `collector.Collector` and return objects as `collector.Resource`. `collector.ResourcesCollector` lists every kind in `collector.Kinds`, the one allowlist, through discovery and the dynamic client, at the version the server prefers. A kind the user can't list is skipped with a warning. `collector.LogsCollector` then fetches the logs of the collected pods with a fixed worker pool, keeping the last `--log-tail` lines of each. `snapshot.Writer` puts them into the tarball layout, and `snapshot.Manager` runs the collectors and writes the manifest.
 
 ## Server (`server/`)
 

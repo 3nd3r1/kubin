@@ -34,7 +34,7 @@ Everything is an env var. Set them with `-e NAME=value`.
 | `SERVER_PORT` | `8080` | Port to listen on |
 | `SERVER_DATA_DIR` | `/data` in the image, `data` otherwise | Holds `kubin.db`, `blobs/` and `tmp/` for uploads in progress |
 | `SERVER_PUBLIC_URL` | empty | Base for the links returned to the CLI. Empty means taken from the request |
-| `SERVER_MAX_UPLOAD_BYTES` | `67108864` (64 MiB) | Largest snapshot accepted |
+| `SERVER_MAX_UPLOAD_BYTES` | `67108864` (64 MiB) | Largest snapshot accepted. If you raise it, raise `kubin create --max-size` too |
 | `SERVER_ENV` | `production` in the image, `development` otherwise | `production` adds browser hardening headers |
 | `SERVER_READ_TIMEOUT` | `10s` | Time to read a whole request, upload included |
 | `SERVER_WRITE_TIMEOUT` | `10s` | Time to write a response |

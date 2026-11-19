@@ -19,6 +19,7 @@ type Manager struct {
 	client     kube.Client
 	collectors []collector.Collector
 	logs       *collector.LogsCollector
+	skipLogs   bool
 	redactor   *redact.Redactor
 	cliVersion string
 	now        func() time.Time
@@ -27,17 +28,17 @@ type Manager struct {
 // Options are the choices kubin create offers about what goes in a
 // snapshot.
 type Options struct {
-	Logs   collector.LogOptions
-	Redact redact.Options
+	Scope    collector.Scope
+	Logs     collector.LogOptions
+	SkipLogs bool
+	Redact   redact.Options
 }
 
 func NewManager(client kube.Client, cliVersion string, opts Options) *Manager {
 	return &Manager{
-		client: client,
-		collectors: []collector.Collector{
-			collector.NewCoreCollector(client),
-			collector.NewEventsCollector(client),
-		},
+		client:     client,
+		collectors: []collector.Collector{collector.NewResourcesCollector(client, opts.Scope)},
+		skipLogs:   opts.SkipLogs,
 		logs:       collector.NewLogsCollector(client, opts.Logs),
 		redactor:   redact.New(opts.Redact),
 		cliVersion: cliVersion,
@@ -82,8 +83,10 @@ func (m *Manager) Create(ctx context.Context, out io.Writer) (_ Manifest, err er
 	}
 
 	// Logs come from the pods in the snapshot, so every log has its pod.
-	if err := m.logs.Collect(ctx, pods, w.AddLog); err != nil {
-		return Manifest{}, fmt.Errorf("collect logs: %w", err)
+	if !m.skipLogs {
+		if err := m.logs.Collect(ctx, pods, w.AddLog); err != nil {
+			return Manifest{}, fmt.Errorf("collect logs: %w", err)
+		}
 	}
 	logOpts := m.logs.Options()
 

@@ -18,11 +18,11 @@ The demo needs Docker, kind, kubectl, Go, and curl. It builds and starts Kubin, 
 
 ## What works
 
-The demo captures namespaces, pods, pod events, and container logs. Its snapshot link opens a read-only page with the pod status, events, and logs.
+`kubin create` captures namespaces, nodes, pods, workloads (Deployments, ReplicaSets, StatefulSets, DaemonSets, Jobs, CronJobs), Services, EndpointSlices, Ingresses, ConfigMaps, volumes and claims, events, and container logs. Kinds you have no RBAC for are skipped with a warning. `--namespace` and `--exclude-namespace` narrow the capture, `--no-logs` leaves logs out, `--context` picks the kubeconfig context, and `--max-size` (64Mi by default) stops an oversized upload. The snapshot link opens a read-only page with the pod status, events, and logs.
 
 ## What does not
 
-Kubin does not yet collect the other workload, networking, config, and node resources. The CLI cannot choose which resources to capture. There is no authentication, and the repository does not publish a release image yet. See [the roadmap](backlog/docs/doc-1%20-%20Direction.md) for planned work and [self-hosting](docs/self-hosting.md) for running the server yourself.
+The page shows only pods so far; the other kinds are in the snapshot but not on screen. There is no authentication, and the repository does not publish a release image yet. See [the roadmap](backlog/docs/doc-1%20-%20Direction.md) for planned work and [self-hosting](docs/self-hosting.md) for running the server yourself.
 
 ## Development
 

@@ -8,20 +8,30 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+// listPageSize is how many objects one list call asks for, so a big
+// cluster is read in pages instead of one huge response.
+const listPageSize = 500
+
 type Client interface {
 	ClusterInfo(ctx context.Context) (ClusterInfo, error)
-	GetNamespaces(ctx context.Context) ([]corev1.Namespace, error)
-	// GetPods lists pods in namespace, or in all namespaces when it is empty.
-	GetPods(ctx context.Context, namespace string) ([]corev1.Pod, error)
+	// PreferredResources lists the resources the server serves, each at
+	// the version the server prefers. If some API groups could not be
+	// read it returns what it got together with a
+	// *discovery.ErrGroupDiscoveryFailed.
+	PreferredResources() ([]*metav1.APIResourceList, error)
+	// List returns every object of a resource in namespace, or in all
+	// namespaces when it is empty.
+	List(ctx context.Context, gvr schema.GroupVersionResource, namespace string) ([]unstructured.Unstructured, error)
 	// GetPodLogs streams one container's log. The caller closes it.
 	GetPodLogs(ctx context.Context, namespace, pod string, opts corev1.PodLogOptions) (io.ReadCloser, error)
-	// GetEvents lists core/v1 events in namespace, or in all namespaces when
-	// it is empty.
-	GetEvents(ctx context.Context, namespace string) ([]corev1.Event, error)
 }
 
 // ClusterInfo describes the cluster a snapshot was taken from.
@@ -33,30 +43,35 @@ type ClusterInfo struct {
 
 type KubeClient struct {
 	clientset kubernetes.Interface
+	dynamic   dynamic.Interface
 	context   string
 	cluster   string
 }
 
 var _ Client = (*KubeClient)(nil)
 
-// NewKubeClient connects with the current kubeconfig context, read the same
-// way kubectl reads it (KUBECONFIG, then ~/.kube/config).
-func NewKubeClient() (*KubeClient, error) {
+// NewKubeClient connects with a kubeconfig context, read the same way
+// kubectl reads it (KUBECONFIG, then ~/.kube/config). An empty context
+// means the current one.
+func NewKubeClient(context string) (*KubeClient, error) {
 	loader := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		clientcmd.NewDefaultClientConfigLoadingRules(), &clientcmd.ConfigOverrides{})
+		clientcmd.NewDefaultClientConfigLoadingRules(), &clientcmd.ConfigOverrides{CurrentContext: context})
 
 	raw, err := loader.RawConfig()
 	if err != nil {
 		return nil, fmt.Errorf("read kubeconfig: %w", err)
 	}
+	if context == "" {
+		context = raw.CurrentContext
+	}
 	var cluster string
-	if c, ok := raw.Contexts[raw.CurrentContext]; ok {
+	if c, ok := raw.Contexts[context]; ok {
 		cluster = c.Cluster
 	}
 
 	config, err := loader.ClientConfig()
 	if err != nil {
-		return nil, fmt.Errorf("load kubeconfig context %q: %w", raw.CurrentContext, err)
+		return nil, fmt.Errorf("load kubeconfig context %q: %w", context, err)
 	}
 	// client-go defaults to 5 requests per second, which serialises the
 	// parallel log fetches. The API server's own fairness still applies.
@@ -66,12 +81,16 @@ func NewKubeClient() (*KubeClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewFromClientset(clientset, raw.CurrentContext, cluster), nil
+	dyn, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	return NewFromClients(clientset, dyn, context, cluster), nil
 }
 
-// NewFromClientset wraps an existing clientset, like client-go's fake.
-func NewFromClientset(clientset kubernetes.Interface, context, cluster string) *KubeClient {
-	return &KubeClient{clientset: clientset, context: context, cluster: cluster}
+// NewFromClients wraps existing clients, like client-go's fakes.
+func NewFromClients(clientset kubernetes.Interface, dyn dynamic.Interface, context, cluster string) *KubeClient {
+	return &KubeClient{clientset: clientset, dynamic: dyn, context: context, cluster: cluster}
 }
 
 func (k *KubeClient) ClusterInfo(ctx context.Context) (ClusterInfo, error) {
@@ -82,28 +101,24 @@ func (k *KubeClient) ClusterInfo(ctx context.Context) (ClusterInfo, error) {
 	return ClusterInfo{Context: k.context, Name: k.cluster, ServerVersion: v.GitVersion}, nil
 }
 
-func (k *KubeClient) GetNamespaces(ctx context.Context) ([]corev1.Namespace, error) {
-	list, err := k.clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return list.Items, nil
+func (k *KubeClient) PreferredResources() ([]*metav1.APIResourceList, error) {
+	return discovery.ServerPreferredResources(k.clientset.Discovery())
 }
 
-func (k *KubeClient) GetPods(ctx context.Context, namespace string) ([]corev1.Pod, error) {
-	list, err := k.clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, err
+func (k *KubeClient) List(ctx context.Context, gvr schema.GroupVersionResource, namespace string) ([]unstructured.Unstructured, error) {
+	var items []unstructured.Unstructured
+	opts := metav1.ListOptions{Limit: listPageSize}
+	for {
+		list, err := k.dynamic.Resource(gvr).Namespace(namespace).List(ctx, opts)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, list.Items...)
+		opts.Continue = list.GetContinue()
+		if opts.Continue == "" {
+			return items, nil
+		}
 	}
-	return list.Items, nil
-}
-
-func (k *KubeClient) GetEvents(ctx context.Context, namespace string) ([]corev1.Event, error) {
-	list, err := k.clientset.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return list.Items, nil
 }
 
 func (k *KubeClient) GetPodLogs(ctx context.Context, namespace, pod string, opts corev1.PodLogOptions) (io.ReadCloser, error) {

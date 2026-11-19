@@ -13,22 +13,18 @@ import (
 	"testing"
 
 	"github.com/3nd3r1/kubin/cli/pkg/kube"
+	"github.com/3nd3r1/kubin/cli/pkg/kube/kubetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8sversion "k8s.io/apimachinery/pkg/version"
-	fakediscovery "k8s.io/client-go/discovery/fake"
-	"k8s.io/client-go/kubernetes/fake"
 )
 
 func fakeClient() kube.Client {
-	cs := fake.NewClientset(
+	return kubetest.New(
 		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}},
 		&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "web"}},
 	)
-	cs.Discovery().(*fakediscovery.FakeDiscovery).FakedServerVersion = &k8sversion.Info{GitVersion: "v1.33.1"}
-	return kube.NewFromClientset(cs, "kind-kubin", "kind-kubin")
 }
 
 // firstEntry returns the name of the first file in a gzipped tar.
@@ -93,4 +89,31 @@ func TestCreateOutputWritesFileAndSkipsUpload(t *testing.T) {
 	assert.Equal(t, "manifest.json", firstEntry(t, data))
 	entries, _ := os.ReadDir(dir)
 	assert.Len(t, entries, 1, "no staging file left next to the output")
+}
+
+func TestCreateRefusesSnapshotOverMaxSize(t *testing.T) {
+	called := false
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true }))
+	defer srv.Close()
+
+	tmp := t.TempDir()
+	var stdout bytes.Buffer
+	err := runCreate(context.Background(), createOptions{Server: srv.URL, TempDir: tmp, MaxSize: "100"}, fakeClient(), &stdout)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "over --max-size 100")
+	assert.False(t, called, "nothing is uploaded")
+	left, _ := os.ReadDir(tmp)
+	assert.Empty(t, left)
+}
+
+func TestParseSize(t *testing.T) {
+	for in, want := range map[string]int64{"": 0, "0": 0, "64Mi": 64 << 20, "200M": 200_000_000, "1500": 1500} {
+		got, err := parseSize(in)
+		require.NoError(t, err, in)
+		assert.Equal(t, want, got, in)
+	}
+	for _, in := range []string{"lots", "-1Mi"} {
+		_, err := parseSize(in)
+		assert.Error(t, err, in)
+	}
 }
