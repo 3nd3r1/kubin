@@ -1,7 +1,7 @@
 project_name: "kubin"
 default_status: "To Do"
-statuses: ["To Do", "In Progress", "Done"]
-labels: ["cli", "server", "ui", "deploy", "bug"]
+statuses: ["To Do", "Run", "In Progress", "Blocked", "Done"]
+labels: ["cli", "server", "ui", "deploy", "bug", "chore", "tier:1", "tier:2", "tier:3", "tier:4"]
 date_format: yyyy-mm-dd
 max_column_width: 20
 default_editor: "nvim"
