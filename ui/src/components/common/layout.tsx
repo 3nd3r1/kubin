@@ -1,8 +1,12 @@
-import { Link, Outlet } from "react-router";
+import { Link, Outlet, useMatch } from "react-router";
+
+import { cn } from "@/lib/utils";
 
 import { ThemeToggle } from "./theme-toggle";
 
 export function Layout() {
+    // Snapshot pages need the width for the sidebar and a table.
+    const wide = useMatch("/s/*") !== null;
     return (
         <div className="flex min-h-screen flex-col">
             <header className="border-b">
@@ -17,7 +21,12 @@ export function Layout() {
                     <ThemeToggle />
                 </div>
             </header>
-            <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
+            <main
+                className={cn(
+                    "mx-auto w-full flex-1 px-4 py-8",
+                    !wide && "max-w-6xl"
+                )}
+            >
                 <Outlet />
             </main>
         </div>

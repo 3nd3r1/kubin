@@ -11,6 +11,7 @@ import { ThemeProvider } from "@/components/common/theme-provider";
 import "./index.css";
 
 import { HomePage } from "@/pages/home";
+import { KindPage } from "@/pages/kind";
 import { NotFoundPage } from "@/pages/not-found";
 import { PodPage } from "@/pages/pod";
 import { PodsPage } from "@/pages/pods";
@@ -27,6 +28,7 @@ const router = createBrowserRouter([
                 children: [
                     { index: true, element: <PodsPage /> },
                     { path: "pods/:ns/:name", element: <PodPage /> },
+                    { path: ":resource", element: <KindPage /> },
                     { path: "*", element: <NotFoundPage /> },
                 ],
             },

@@ -1,10 +1,11 @@
 ---
 id: TASK-15
 title: Kind sidebar, kind routes and namespace filter
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@claude'
 created_date: '2026-11-17T10:05:00Z'
-updated_date: '2026-11-19T11:42:00Z'
+updated_date: '2026-11-19T12:11:00Z'
 labels:
   - ui
   - tier:3
@@ -60,15 +61,21 @@ URL scheme. TASK-16, TASK-17 and TASK-18 rely on it:
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The sidebar lists every kind in the snapshot under Workloads, Network, Config, Storage and Cluster with its count from `snapshot.counts`, and kinds missing from `ui/src/lib/kinds.ts` under Other; the grouping is tested in `ui/src/lib/kinds.test.ts`
-- [ ] #2 `/s/{id}/{resource}` shows a table of that kind with Name, Namespace for namespaced kinds, and Age; Pods keep Status, Ready and Restarts; an unknown `{resource}` shows the not-found page
-- [ ] #3 `?ns=` filters every namespaced kind's table, sidebar links keep it, and reloading a URL restores the same view; the URL helpers are tested
-- [ ] #4 `/s/{id}/pods/{ns}/{name}` still opens the pod page and `/s/{id}` still shows the problems-first pod page
-- [ ] #5 `docs/architecture.md` describes the URL scheme
+- [x] #1 The sidebar lists every kind in the snapshot under Workloads, Network, Config, Storage and Cluster with its count from `snapshot.counts`, and kinds missing from `ui/src/lib/kinds.ts` under Other; the grouping is tested in `ui/src/lib/kinds.test.ts`
+- [x] #2 `/s/{id}/{resource}` shows a table of that kind with Name, Namespace for namespaced kinds, and Age; Pods keep Status, Ready and Restarts; an unknown `{resource}` shows the not-found page
+- [x] #3 `?ns=` filters every namespaced kind's table, sidebar links keep it, and reloading a URL restores the same view; the URL helpers are tested
+- [x] #4 `/s/{id}/pods/{ns}/{name}` still opens the pod page and `/s/{id}` still shows the problems-first pod page
+- [x] #5 `docs/architecture.md` describes the URL scheme
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 `nix-shell --run 'cd ui && make lint && make typecheck && make test && make build'` passes
-- [ ] #2 The task's commits change nothing under `server/`, `cli/` or `docs/snapshot-format.md` (check with `git log --stat`)
+- [x] #1 `nix-shell --run 'cd ui && make lint && make typecheck && make test && make build'` passes
+- [x] #2 The task's commits change nothing under `server/`, `cli/` or `docs/snapshot-format.md` (check with `git log --stat`)
 <!-- DOD:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added ui/src/lib/kinds.ts (kind table, sidebar grouping, segment resolution, Other section for unknown kinds), URL helpers in snapshot.ts, KindPage (generic Name/Namespace/Age table; pods reuse PodTable), sidebar and namespace select in SnapshotLayout, full-width snapshot pages, and the URL scheme in docs/architecture.md. Routes: :resource lists a kind (unknown segment gives NotFoundPage); pods/:ns/:name and the index page are unchanged. Verified with make lint, typecheck, test, build and new vitest tests; not exercised in a browser. Nothing under server/, cli/ or snapshot-format.md changed.
+<!-- SECTION:FINAL_SUMMARY:END -->

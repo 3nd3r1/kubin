@@ -76,7 +76,7 @@ export function PodsPage() {
     );
 }
 
-function PodTable({
+export function PodTable({
     pods,
     showNamespace = false,
 }: {

@@ -69,6 +69,8 @@ GET  /*                                                the UI
 
 A Vite React app with Tailwind and shadcn/ui, built into the server (TASK-24). `/s/{id}` is a snapshot. The layout follows Lens: kinds in a sidebar, a table per kind, a detail panel with YAML, events and logs. Read-only.
 
+URLs: `/s/{id}` is the problems-first overview. `/s/{id}/{resource}` lists one kind, `{resource}` being kubectl's lowercase plural (`pods`, `deployments`, `persistentvolumeclaims`). `/s/{id}/{resource}/{namespace}/{name}` is a resource's detail, with `_cluster` as the namespace of cluster-scoped kinds, as in the API. `?ns={namespace}` filters every namespaced kind and the sidebar links keep it; without it all namespaces show.
+
 ## Deploying
 
 The same image covers three setups:
