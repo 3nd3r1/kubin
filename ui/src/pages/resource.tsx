@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 
 import { LoadError, Loading } from "@/components/common/states";
 import { ResourceEvents } from "@/components/resource/events";
+import { OwnerLinks, RelatedResources } from "@/components/resource/related";
 import { YamlView } from "@/components/resource/yaml";
 
 import { NotFoundPage } from "./not-found";
@@ -68,6 +69,11 @@ export function ResourcePage() {
                     {namespace && (
                         <Field label="Namespace" value={namespace} mono />
                     )}
+                    {(meta.ownerReferences?.length ?? 0) > 0 && (
+                        <Field label="Owner" mono>
+                            <OwnerLinks snapshot={snapshot} object={obj} />
+                        </Field>
+                    )}
                     <Field
                         label="Age"
                         value={
@@ -83,6 +89,8 @@ export function ResourcePage() {
             <Pairs id="labels" title="Labels" entries={labels} />
             <Pairs id="annotations" title="Annotations" entries={annotations} />
 
+            <RelatedResources snapshot={snapshot} object={{ ...obj, kind }} />
+
             <ResourceEvents
                 snapshotId={snapshot.id}
                 object={obj}
@@ -96,10 +104,12 @@ export function ResourcePage() {
 function Field({
     label,
     value,
+    children,
     mono,
 }: {
     label: string;
-    value: string;
+    value?: string;
+    children?: React.ReactNode;
     mono?: boolean;
 }) {
     return (
@@ -109,7 +119,7 @@ function Field({
                 className={mono ? "truncate font-mono" : undefined}
                 title={value}
             >
-                {value}
+                {children ?? value}
             </dd>
         </div>
     );

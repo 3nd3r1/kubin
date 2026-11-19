@@ -118,3 +118,8 @@ export function resolveSegment(
     );
     return c && { kind: c.kind, group: c.group };
 }
+
+/** The URL segment for any kind, known or not. */
+export function segmentFor(kind: string, group: string): string {
+    return find(group, kind)?.segment ?? otherSegment({ kind, group });
+}

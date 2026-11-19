@@ -1,10 +1,11 @@
 ---
 id: TASK-33
 title: Link related resources from the detail page
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@claude'
 created_date: '2026-11-19T11:41:00Z'
-updated_date: '2026-11-19T11:42:00Z'
+updated_date: '2026-11-19T12:25:00Z'
 labels:
   - ui
   - tier:3
@@ -55,14 +56,20 @@ Relations to show:
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Owner references are links to the owner's detail, or plain text when the owner isn't in the snapshot
-- [ ] #2 Deployments, ReplicaSets, StatefulSets, DaemonSets, Jobs and CronJobs list the resources they own, matched by owner UID, as links
-- [ ] #3 A Pod links to its Node and to the Services whose selector matches its labels; a Service lists the Pods it selects; a Node lists the Pods scheduled on it
-- [ ] #4 `ui/src/lib/relations.test.ts` covers UID matching (same name, other UID: no match), selector matching (no selector matches nothing) and owners missing from the snapshot
+- [x] #1 Owner references are links to the owner's detail, or plain text when the owner isn't in the snapshot
+- [x] #2 Deployments, ReplicaSets, StatefulSets, DaemonSets, Jobs and CronJobs list the resources they own, matched by owner UID, as links
+- [x] #3 A Pod links to its Node and to the Services whose selector matches its labels; a Service lists the Pods it selects; a Node lists the Pods scheduled on it
+- [x] #4 `ui/src/lib/relations.test.ts` covers UID matching (same name, other UID: no match), selector matching (no selector matches nothing) and owners missing from the snapshot
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 `nix-shell --run 'cd ui && make lint && make typecheck && make test && make build'` passes
-- [ ] #2 The task's commits change nothing under `server/`, `cli/` or `docs/snapshot-format.md` (check with `git log --stat`)
+- [x] #1 `nix-shell --run 'cd ui && make lint && make typecheck && make test && make build'` passes
+- [x] #2 The task's commits change nothing under `server/`, `cli/` or `docs/snapshot-format.md` (check with `git log --stat`)
 <!-- DOD:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added ui/src/lib/relations.ts (UID owner matching, selector matching, service/pod/node helpers) with tests, and components/resource/related.tsx. Owner and Node fields link only when the object is in the snapshot; owned resources, Services of a Pod, Pods of a Service and Pods of a Node are listed. Extended ObjectMeta.ownerReferences and spec.selector. UI lint, typecheck, test and build pass; nothing under server/, cli/ or docs touched.
+<!-- SECTION:FINAL_SUMMARY:END -->

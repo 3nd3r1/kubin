@@ -9,7 +9,13 @@ export type ObjectMeta = {
     deletionTimestamp?: string;
     labels?: Record<string, string>;
     annotations?: Record<string, string>;
-    ownerReferences?: { kind?: string; name?: string }[];
+    ownerReferences?: {
+        apiVersion?: string;
+        kind?: string;
+        name?: string;
+        uid?: string;
+        controller?: boolean;
+    }[];
 };
 
 export type ContainerState = {
@@ -140,6 +146,7 @@ export type AnyObject = {
         capacity?: Quantities;
         persistentVolumeReclaimPolicy?: string;
         claimRef?: { namespace?: string; name?: string };
+        selector?: Record<string, string>;
         template?: { spec?: { nodeSelector?: Record<string, string> } };
     };
     status?: {

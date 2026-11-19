@@ -12,6 +12,11 @@ import { LoadError, Loading } from "@/components/common/states";
 import { PodStatus } from "@/components/common/status";
 import { PodLogs } from "@/components/pod/logs";
 import { ResourceEvents } from "@/components/resource/events";
+import {
+    NodeLink,
+    OwnerLinks,
+    RelatedResources,
+} from "@/components/resource/related";
 import { YamlView } from "@/components/resource/yaml";
 
 import { NotFoundPage } from "./not-found";
@@ -69,7 +74,6 @@ function PodDetail({ pod, snapshot }: { pod: Pod; snapshot: Snapshot }) {
         ...(pod.spec?.initContainers ?? []).map((c) => ({ ...c, init: true })),
         ...(pod.spec?.containers ?? []).map((c) => ({ ...c, init: false })),
     ];
-    const owner = pod.metadata?.ownerReferences?.[0];
 
     return (
         <>
@@ -94,12 +98,16 @@ function PodDetail({ pod, snapshot }: { pod: Pod; snapshot: Snapshot }) {
                 <Field label="Ready" value={s.ready} />
                 <Field label="Restarts" value={String(s.restarts)} />
                 <Field label="Age" value={s.age || "–"} />
-                <Field label="Node" value={s.node || "not scheduled"} mono />
-                <Field
-                    label="Owner"
-                    value={owner ? `${owner.kind}/${owner.name}` : "–"}
-                    mono
-                />
+                <Field label="Node" title={s.node} mono>
+                    {s.node ? (
+                        <NodeLink snapshot={snapshot} name={s.node} />
+                    ) : (
+                        "not scheduled"
+                    )}
+                </Field>
+                <Field label="Owner" mono>
+                    <OwnerLinks snapshot={snapshot} object={pod} />
+                </Field>
             </dl>
 
             <section aria-labelledby="containers" className="space-y-3">
@@ -118,6 +126,8 @@ function PodDetail({ pod, snapshot }: { pod: Pod; snapshot: Snapshot }) {
                     ))}
                 </div>
             </section>
+
+            <RelatedResources snapshot={snapshot} object={pod} />
 
             <PodLogs
                 key={podKey}
@@ -140,10 +150,14 @@ function PodDetail({ pod, snapshot }: { pod: Pod; snapshot: Snapshot }) {
 function Field({
     label,
     value,
+    title,
+    children,
     mono,
 }: {
     label: string;
-    value: string;
+    value?: string;
+    title?: string;
+    children?: React.ReactNode;
     mono?: boolean;
 }) {
     return (
@@ -151,9 +165,9 @@ function Field({
             <dt className="text-muted-foreground">{label}</dt>
             <dd
                 className={mono ? "truncate font-mono" : undefined}
-                title={value}
+                title={title ?? value}
             >
-                {value}
+                {children ?? value}
             </dd>
         </div>
     );
