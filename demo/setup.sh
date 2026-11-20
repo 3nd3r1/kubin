@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Builds everything the demo needs, without taking a snapshot: a kind cluster
-# running the broken checkout app, the kubin server in Docker and the CLI in
-# demo/bin/kubin. demo/run.sh calls this and then takes the snapshot.
+# Builds everything the demo needs, without taking a snapshot, and first
+# deletes whatever a previous run left. That is a kind cluster running the
+# broken checkout app, the kubin server in Docker, the CLI in demo/bin/kubin
+# and a fresh Linear ticket (demo/linear.sh). demo/run.sh calls this and then
+# takes the snapshot.
 set -Eeuo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -36,14 +38,16 @@ for tool in docker kind kubectl go curl; do
   fi
 done
 
-if kind get clusters | grep -Fxq "$cluster"; then
-  echo "A kind cluster named '$cluster' already exists. Delete it or choose another name." >&2
-  exit 1
+# Start from scratch: remove a previous demo's cluster, container and data.
+if kind get clusters 2>/dev/null | grep -Fxq "$cluster"; then
+  echo "Deleting the old kind cluster '$cluster'..."
+  kind delete cluster --name "$cluster"
 fi
 if docker container inspect "$container" >/dev/null 2>&1; then
-  echo "A Docker container named '$container' already exists. Remove it or choose another name." >&2
-  exit 1
+  echo "Removing the old Docker container '$container'..."
+  docker rm -f "$container" >/dev/null
 fi
+docker volume rm kubin-demo-data >/dev/null 2>&1 || true
 
 if curl --silent --max-time 2 "$server" >/dev/null 2>&1; then
   echo "Port $port is in use. Set KUBIN_PORT to another port." >&2
@@ -118,6 +122,9 @@ wait_for "the api pod to restart" "kubectl -n checkout get pods -l app=api" api_
 wait_for "a FailedScheduling event on postgres-0" "kubectl -n checkout describe pod postgres-0" postgres_unschedulable
 wait_for "job worker to fail" "kubectl -n checkout describe job worker" worker_failed
 wait_for "deployment web to be 2/2 ready" "kubectl -n checkout get deploy web" web_ready
+
+echo "Resetting the Linear workspace..."
+"$repo_root/demo/linear.sh" || echo "Skipped the Linear reset (see above)." >&2
 
 echo "Building the kubin CLI..."
 (cd "$repo_root/cli" && go build -o ../demo/bin/kubin .)
