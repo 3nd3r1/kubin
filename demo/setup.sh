@@ -11,7 +11,7 @@ cluster="kubin-demo"
 container="kubin-demo"
 # The links show a made-up domain. It resolves to this machine through an
 # /etc/hosts entry, so the browser still reaches the container on localhost.
-host="${KUBIN_DEMO_HOST:-kubin.sh}"
+host="${KUBIN_DEMO_HOST:-kubin.ender.fi}"
 port="${KUBIN_PORT:-80}"
 local_server="http://localhost:$port"
 if [[ "$port" == 80 ]]; then
