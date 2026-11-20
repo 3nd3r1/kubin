@@ -9,8 +9,16 @@ set -Eeuo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cluster="kubin-demo"
 container="kubin-demo"
-port="${KUBIN_PORT:-8080}"
-server="http://localhost:$port"
+# The links show a made-up domain. It resolves to this machine through an
+# /etc/hosts entry, so the browser still reaches the container on localhost.
+host="${KUBIN_DEMO_HOST:-kubin.sh}"
+port="${KUBIN_PORT:-80}"
+local_server="http://localhost:$port"
+if [[ "$port" == 80 ]]; then
+  server="http://$host"
+else
+  server="http://$host:$port"
+fi
 apply_err="$(mktemp "${TMPDIR:-/tmp}/kubin-demo.XXXXXX")"
 cluster_created=0
 container_started=0
@@ -38,6 +46,12 @@ for tool in docker kind kubectl go curl; do
   fi
 done
 
+if ! getent hosts "$host" 2>/dev/null | grep -Eq '^(127\.0\.0\.1|::1)\s'; then
+  echo "$host doesn't point at this machine. Run once:" >&2
+  echo "  echo '127.0.0.1 $host' | sudo tee -a /etc/hosts" >&2
+  exit 1
+fi
+
 # Start from scratch: remove a previous demo's cluster, container and data.
 if kind get clusters 2>/dev/null | grep -Fxq "$cluster"; then
   echo "Deleting the old kind cluster '$cluster'..."
@@ -49,7 +63,7 @@ if docker container inspect "$container" >/dev/null 2>&1; then
 fi
 docker volume rm kubin-demo-data >/dev/null 2>&1 || true
 
-if curl --silent --max-time 2 "$server" >/dev/null 2>&1; then
+if curl --silent --max-time 2 "$local_server" >/dev/null 2>&1; then
   echo "Port $port is in use. Set KUBIN_PORT to another port." >&2
   exit 1
 fi
@@ -72,7 +86,7 @@ docker run -d --name "$container" -p "$port:8080" \
   -e SERVER_PUBLIC_URL="$server" \
   -v kubin-demo-data:/data kubin:demo >/dev/null
 curl --fail --silent --show-error --retry 45 --retry-all-errors \
-  --retry-delay 1 "$server/readyz" >/dev/null
+  --retry-delay 1 "$local_server/readyz" >/dev/null
 
 echo "Applying the checkout app..."
 # Resources in the new namespace can't be created until it has its default

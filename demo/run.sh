@@ -2,8 +2,13 @@
 set -Eeuo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-port="${KUBIN_PORT:-8080}"
-server="http://localhost:$port"
+port="${KUBIN_PORT:-80}"
+host="${KUBIN_DEMO_HOST:-kubin.sh}"
+if [[ "$port" == 80 ]]; then
+  server="http://$host"
+else
+  server="http://$host:$port"
+fi
 
 "$repo_root/demo/setup.sh"
 
