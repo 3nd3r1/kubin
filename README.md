@@ -14,6 +14,8 @@ A 3-minute walkthrough on YouTube: [watch it here](https://www.youtube.com/watch
 
 [![Watch the 3-minute Kubin demo on YouTube: one command, kubin create, turns a broken cluster into a link](docs/assets/thumb-demo.jpeg)](https://www.youtube.com/watch?v=4R4l0JQBz2E)
 
+## Try it
+
 ```sh
 git clone https://github.com/3nd3r1/kubin.git
 cd kubin
