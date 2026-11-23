@@ -4,9 +4,15 @@
 
 <p align="center">Capture a broken Kubernetes cluster with one command and put the link in a ticket, instead of pasting a log dump.</p>
 
-[![Watch the 3-minute Kubin demo on YouTube: one command, kubin create, turns a broken cluster into a link](docs/assets/thumb-demo.jpeg)](https://www.youtube.com/watch?v=4R4l0JQBz2E)
+## Demo
 
 ![kubin create prints a link; the page lists what is broken first, then the failing api pod's logs and a sidebar of every kind in the cluster](demo/kubin-demo.gif)
+
+## Video
+
+A 3-minute walkthrough on YouTube: [watch it here](https://www.youtube.com/watch?v=4R4l0JQBz2E).
+
+[![Watch the 3-minute Kubin demo on YouTube: one command, kubin create, turns a broken cluster into a link](docs/assets/thumb-demo.jpeg)](https://www.youtube.com/watch?v=4R4l0JQBz2E)
 
 ```sh
 git clone https://github.com/3nd3r1/kubin.git
