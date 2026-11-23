@@ -4,7 +4,7 @@
 
 <p align="center">Capture a broken Kubernetes cluster with one command and put the link in a ticket, instead of pasting a log dump.</p>
 
-<!-- Narrated walkthrough goes here: drag the mp4 into the GitHub editor so it plays inline. Script: demo/video-script.md -->
+[![Watch the 3-minute Kubin demo on YouTube: one command, kubin create, turns a broken cluster into a link](docs/assets/thumb-demo.jpeg)](https://www.youtube.com/watch?v=4R4l0JQBz2E)
 
 ![kubin create prints a link; the page lists what is broken first, then the failing api pod's logs and a sidebar of every kind in the cluster](demo/kubin-demo.gif)
 

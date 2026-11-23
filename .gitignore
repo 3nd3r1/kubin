@@ -4,3 +4,4 @@
 kubin-snapshot-*.tar.gz
 /demo/bin/
 .env
+demo/*.mp4
