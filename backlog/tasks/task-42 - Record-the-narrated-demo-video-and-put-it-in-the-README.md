@@ -1,10 +1,11 @@
 ---
 id: TASK-42
 title: Record the narrated demo video and put it in the README
-status: To Do
+status: Done
 assignee:
   - '@human'
 created_date: '2026-11-19T14:57:00Z'
+updated_date: '2026-11-23T15:32:00Z'
 labels:
   - human
 milestone: m-0
