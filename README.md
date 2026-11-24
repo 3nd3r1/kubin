@@ -14,6 +14,14 @@ A 3-minute walkthrough on YouTube: [watch it here](https://www.youtube.com/watch
 
 [![Watch the 3-minute Kubin demo on YouTube: one command, kubin create, turns a broken cluster into a link](docs/assets/thumb-demo.jpeg)](https://www.youtube.com/watch?v=4R4l0JQBz2E)
 
+## Install
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/3nd3r1/kubin/main/install.sh | sh
+```
+
+This installs the `kubin` CLI from the latest release into `/usr/local/bin` (set `KUBIN_INSTALL_DIR` to change it, `KUBIN_VERSION` to pin a version). The server image is `ghcr.io/3nd3r1/kubin`.
+
 ## Try it
 
 ```sh
@@ -30,7 +38,7 @@ The demo needs Docker, kind, kubectl, Go, and curl. It builds and starts Kubin, 
 
 ## What does not
 
-There is no authentication, and the repository does not publish a release image yet. See [the roadmap](backlog/docs/doc-1%20-%20Direction.md) for planned work and [self-hosting](docs/self-hosting.md) for running the server yourself.
+There is no authentication. See [the roadmap](backlog/docs/doc-1%20-%20Direction.md) for planned work and [self-hosting](docs/self-hosting.md) for running the server yourself.
 
 ## Development
 

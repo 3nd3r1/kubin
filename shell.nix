@@ -18,6 +18,9 @@ pkgs.mkShell {
     kubernetes-helm
     skaffold
     k9s
+
+    # Releases
+    goreleaser
   ];
 
   # The pinned backlog CLI (tools/bin/backlog).

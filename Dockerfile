@@ -1,7 +1,7 @@
 # One image: the UI built into the server binary, on scratch.
 # docker build -t kubin .
 
-FROM node:22-alpine AS ui
+FROM --platform=$BUILDPLATFORM node:22-alpine AS ui
 
 WORKDIR /src/ui
 COPY ui/package.json ui/package-lock.json ./
@@ -11,7 +11,8 @@ COPY ui/ ./
 # Writes ../server/internal/web/dist (vite.config.ts).
 RUN npm run build
 
-FROM golang:1.26-alpine AS server
+FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS server
+ARG TARGETOS TARGETARCH
 
 WORKDIR /src/server
 COPY server/go.mod server/go.sum ./
@@ -19,7 +20,7 @@ RUN go mod download
 
 COPY server/ ./
 COPY --from=ui /src/server/internal/web/dist ./internal/web/dist
-RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/kubin-server ./cmd
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags='-s -w' -o /out/kubin-server ./cmd
 # scratch has no mkdir, so the data directory is made here.
 RUN mkdir -p /out/data
 

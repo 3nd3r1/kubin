@@ -1,0 +1,30 @@
+version: 2
+
+project_name: kubin
+
+builds:
+  - id: kubin
+    dir: cli
+    main: .
+    binary: kubin
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w -X github.com/3nd3r1/kubin/cli/cmd.version=v{{.Version}} -X github.com/3nd3r1/kubin/cli/cmd.commit={{.ShortCommit}}
+
+archives:
+  - id: kubin
+    formats: [tar.gz]
+    name_template: "kubin_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  disable: true

@@ -5,8 +5,7 @@ Kubin is one container. It keeps its SQLite database and the uploaded snapshots 
 ## docker run
 
 ```bash
-docker build -t kubin .                                  # from the repo root, until images are released (TASK-19)
-docker run -d --name kubin -p 8080:8080 -v kubin-data:/data kubin
+docker run -d --name kubin -p 8080:8080 -v kubin-data:/data ghcr.io/3nd3r1/kubin
 kubin create --server http://localhost:8080
 ```
 
@@ -16,7 +15,7 @@ The image is built from `scratch` and runs as uid 1001. A named volume gets the 
 
 ```bash
 mkdir -p ./kubin-data && sudo chown 1001:1001 ./kubin-data
-docker run -d -p 8080:8080 -v "$PWD/kubin-data:/data" kubin
+docker run -d -p 8080:8080 -v "$PWD/kubin-data:/data" ghcr.io/3nd3r1/kubin
 ```
 
 A docker compose file (TASK-27) and the Helm chart (TASK-7) come later. Both run one replica on SQLite and a volume, like `docker run`. One container handles far more than a team or a public instance needs ([capacity.md](capacity.md)), so Postgres and S3 wait until something there runs out (decision-12).
