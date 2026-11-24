@@ -130,6 +130,28 @@ export function podsFor<T extends Obj>(
     );
 }
 
+/** The selector as `k=v,k2=v2`, sorted by key. Empty for none. */
+export function selectorText(service: Obj): string {
+    return Object.entries(service.spec?.selector ?? {})
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, v]) => `${k}=${v}`)
+        .join(",");
+}
+
+/**
+ * True when the service has a selector and no pod in its namespace matches.
+ * A service without a selector selects nothing by design, so it is never
+ * flagged. Pods must be the pods of the snapshot, so the caller must not ask
+ * when the snapshot has none.
+ */
+export function selectsNoPods<T extends Obj>(
+    service: Obj,
+    pods: ResourceItem<T>[]
+): boolean {
+    if (Object.keys(service.spec?.selector ?? {}).length === 0) return false;
+    return podsFor(service, pods).length === 0;
+}
+
 /** Pods scheduled on the node, from any namespace. */
 export function podsOnNode<T extends Obj>(
     nodeName: string,

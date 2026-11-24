@@ -11,6 +11,8 @@ import {
     podsFor,
     podsOnNode,
     selectorMatches,
+    selectorText,
+    selectsNoPods,
     servicesFor,
 } from "./relations";
 
@@ -97,6 +99,38 @@ describe("services and pods", () => {
         ];
         expect(podsFor(svc.object, pods).map((p) => p.name)).toEqual(["a"]);
         expect(podsFor(none.object, pods)).toEqual([]);
+    });
+    it("flags a service whose selector matches no pod", () => {
+        const svc = item("Service", "app", "web", {
+            spec: { selector: { app: "wbe" } },
+        });
+        const pods = [pod("app", "web-1", { app: "web" })];
+        expect(selectsNoPods(svc.object, pods)).toBe(true);
+        expect(selectsNoPods(svc.object, [])).toBe(true);
+        expect(selectorText(svc.object)).toBe("app=wbe");
+    });
+    it("does not flag a service without a selector", () => {
+        const none = item("Service", "app", "kubernetes", { spec: {} });
+        const empty = item("Service", "app", "e", { spec: { selector: {} } });
+        const missing = item("Service", "app", "m", {});
+        for (const s of [none, empty, missing])
+            expect(selectsNoPods(s.object, [pod("app", "a", {})])).toBe(false);
+    });
+    it("flags a service when the matching pod is in another namespace", () => {
+        const svc = item("Service", "app", "web", {
+            spec: { selector: { app: "web" } },
+        });
+        expect(
+            selectsNoPods(svc.object, [pod("other", "a", { app: "web" })])
+        ).toBe(true);
+    });
+    it("does not flag a service with a matching pod in its namespace", () => {
+        const svc = item("Service", "app", "web", {
+            spec: { selector: { app: "web" } },
+        });
+        expect(
+            selectsNoPods(svc.object, [pod("app", "a", { app: "web" })])
+        ).toBe(false);
     });
     it("finds pods on a node across namespaces", () => {
         const pods = [

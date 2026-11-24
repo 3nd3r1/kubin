@@ -1,10 +1,11 @@
 ---
 id: TASK-39
 title: Show a Service that selects no pods
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@claude'
 created_date: '2026-11-19T14:45:00Z'
-updated_date: '2026-11-19T14:50:00Z'
+updated_date: '2026-11-24T08:10:00Z'
 labels:
   - ui
   - tier:3
@@ -49,14 +50,20 @@ In the new m-0 demo (user, 2026-11-19) the `web` Service has a selector typo, so
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The detail of a Service with a selector that matches no pod in its namespace shows its Pods section with a line naming the selector, for example `No pods match app=wbe`
-- [ ] #2 The overview lists such Services as warnings with a link to each, and `?ns=` narrows the list
-- [ ] #3 Services without a selector, Services that match at least one pod, and every Service in a snapshot without Pods are neither flagged nor described as matching no pods
-- [ ] #4 `ui/src/lib/relations.test.ts` covers a selector matching nothing, an empty or missing selector, a matching pod in another namespace, and a matching pod in the same namespace
+- [x] #1 The detail of a Service with a selector that matches no pod in its namespace shows its Pods section with a line naming the selector, for example `No pods match app=wbe`
+- [x] #2 The overview lists such Services as warnings with a link to each, and `?ns=` narrows the list
+- [x] #3 Services without a selector, Services that match at least one pod, and every Service in a snapshot without Pods are neither flagged nor described as matching no pods
+- [x] #4 `ui/src/lib/relations.test.ts` covers a selector matching nothing, an empty or missing selector, a matching pod in another namespace, and a matching pod in the same namespace
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 `nix-shell --run 'cd ui && make lint && make typecheck && make test && make build'` passes
-- [ ] #2 The task's commits change nothing under `server/`, `cli/` or `docs/snapshot-format.md` (check with `git log --stat`)
+- [x] #1 `nix-shell --run 'cd ui && make lint && make typecheck && make test && make build'` passes
+- [x] #2 The task's commits change nothing under `server/`, `cli/` or `docs/snapshot-format.md` (check with `git log --stat`)
 <!-- DOD:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added selectsNoPods/selectorText to relations.ts with tests. Service detail keeps its Pods section and shows 'No pods match <selector>' when nothing matches. Overview fetches Services (only when Pod and Service are both in the snapshot), flags selector-without-pods as warnings with a link, narrowed by ?ns=, and keeps the all-clear false. Selectorless Services and snapshots without Pods are never flagged. ui lint, typecheck, test, build pass; nothing under server/, cli/ or snapshot-format.md changed.
+<!-- SECTION:FINAL_SUMMARY:END -->

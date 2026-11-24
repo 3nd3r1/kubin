@@ -14,6 +14,8 @@ import {
     podSpecOf,
     podsFor,
     podsOnNode,
+    selectorText,
+    selectsNoPods,
     servicesFor,
 } from "@/lib/relations";
 import { resourcePath } from "@/lib/snapshot";
@@ -158,12 +160,15 @@ function Related({
     depKey,
     load,
     pick,
+    empty,
 }: {
     title: string;
     id: string;
     depKey: string;
     load: (signal: AbortSignal) => Promise<ResourceItem<Obj>[]>;
     pick: (items: ResourceItem<Obj>[]) => ResourceItem<Obj>[];
+    /** Shown when nothing is picked. Without it the section is hidden. */
+    empty?: string;
 }) {
     const state = useFetch(load, [depKey, title]);
     let body;
@@ -180,8 +185,10 @@ function Related({
         );
     else {
         const items = pick(state.data);
-        if (items.length === 0) return null;
-        body = <Links id={id} items={items} />;
+        if (items.length === 0) {
+            if (!empty) return null;
+            body = <p className="text-muted-foreground text-sm">{empty}</p>;
+        } else body = <Links id={id} items={items} />;
     }
     return (
         <section aria-label={title} className="space-y-2">
@@ -307,6 +314,11 @@ export function RelatedResources({
                 depKey={key}
                 load={list("Pod", ns)}
                 pick={(items) => podsFor(object, items)}
+                empty={
+                    selectsNoPods(object, [])
+                        ? `No pods match ${selectorText(object)}`
+                        : undefined
+                }
             />
         );
     if (kind === "Node" && has("Pod"))

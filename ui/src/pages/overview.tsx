@@ -5,9 +5,10 @@ import { Link, useSearchParams } from "react-router";
 import { type ResourceItem, listResources } from "@/lib/api";
 import { problem } from "@/lib/columns";
 import { recentWarnings } from "@/lib/events";
-import type { AnyObject, Event, Pod } from "@/lib/k8s";
+import type { AnyObject, Event, ObjectMeta, Pod } from "@/lib/k8s";
 import { groupKinds, kinds, segmentFor } from "@/lib/kinds";
 import { type Problem, problems, summarize } from "@/lib/pods";
+import { selectorText, selectsNoPods } from "@/lib/relations";
 import { kindPath, nsParam, resourcePath, useSnapshot } from "@/lib/snapshot";
 import { useFetch } from "@/lib/use-fetch";
 import { cn } from "@/lib/utils";
@@ -32,6 +33,13 @@ type Flagged = {
     kind: string;
     item: ResourceItem<AnyObject>;
     level: NonNullable<Problem>;
+    note?: string;
+};
+
+/** The part of a Service the overview reads. */
+type ServiceObject = {
+    metadata?: ObjectMeta;
+    spec?: { selector?: Record<string, string> };
 };
 
 type Loaded = { flagged: Flagged[]; errors: string[]; pending: number };
@@ -117,6 +125,21 @@ export function OverviewPage() {
             listResources<Event>(id, { kind: "Event", namespace: ns }, signal),
         [id, ns]
     );
+    const hasPods = counts.some((c) => c.kind === "Pod" && c.group === "core");
+    const hasServices = counts.some(
+        (c) => c.kind === "Service" && c.group === "core"
+    );
+    const servicesState = useFetch(
+        (signal) =>
+            hasServices && hasPods
+                ? listResources<ServiceObject>(
+                      id,
+                      { kind: "Service", namespace: ns },
+                      signal
+                  )
+                : Promise.resolve([]),
+        [id, ns, hasServices, hasPods]
+    );
     const present = checked.filter((k) => counts.some((c) => c.kind === k));
     const other = useFlagged(id, ns, present);
 
@@ -131,16 +154,30 @@ export function OverviewPage() {
                 : [],
         [podsState, created]
     );
+    const orphans = useMemo(() => {
+        if (!hasPods || servicesState.status !== "ok") return [];
+        if (podsState.status !== "ok") return [];
+        const podItems = podsState.data.filter((r) => r.group === "core");
+        return servicesState.data
+            .filter((r) => r.group === "core")
+            .filter((r) => selectsNoPods(r.object, podItems))
+            .map((item): Flagged => ({
+                kind: "Service",
+                item,
+                level: "warning",
+                note: `selects no pods (${selectorText(item.object)})`,
+            }));
+    }, [hasPods, servicesState, podsState]);
     const flagged = useMemo(
         () =>
-            [...other.flagged].sort(
+            [...other.flagged, ...orphans].sort(
                 (a, b) =>
                     rank[a.level] - rank[b.level] ||
                     a.kind.localeCompare(b.kind) ||
                     a.item.namespace.localeCompare(b.item.namespace) ||
                     a.item.name.localeCompare(b.item.name)
             ),
-        [other.flagged]
+        [other.flagged, orphans]
     );
     const warnings = useMemo(
         () =>
@@ -160,10 +197,12 @@ export function OverviewPage() {
     const loading =
         podsState.status === "loading" ||
         eventsState.status === "loading" ||
+        servicesState.status === "loading" ||
         other.pending > 0;
     const failed = [
         podsState.status === "error" && `Pod: ${podsState.message}`,
         eventsState.status === "error" && `Event: ${eventsState.message}`,
+        servicesState.status === "error" && `Service: ${servicesState.message}`,
         ...other.errors,
     ].filter((e): e is string => !!e);
     const clean =
@@ -286,6 +325,11 @@ export function OverviewPage() {
                                         : ""}
                                     {f.item.name}
                                 </Link>
+                                {f.note && (
+                                    <span className="text-muted-foreground">
+                                        {f.note}
+                                    </span>
+                                )}
                             </li>
                         ))}
                     </ul>
