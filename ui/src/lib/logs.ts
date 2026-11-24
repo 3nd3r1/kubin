@@ -136,3 +136,26 @@ export function visibleRange(
     const end = Math.min(lineCount, Math.max(start, last + overscan));
     return { start, end };
 }
+
+export type Match = { line: number; start: number; end: number };
+
+/**
+ * Every case-insensitive occurrence of `query` in the lines, in order.
+ * line is a 0-based index, start and end are offsets into that line (end
+ * exclusive). The query is taken literally. An empty query matches nothing.
+ */
+export function findMatches(lines: string[], query: string): Match[] {
+    if (query === "") return [];
+    const q = query.toLowerCase();
+    const out: Match[] = [];
+    lines.forEach((l, line) => {
+        const hay = l.toLowerCase();
+        // Lowercasing can change the length of exotic characters, and then
+        // offsets would point into the wrong text. Skip such lines.
+        if (hay.length !== l.length) return;
+        for (let i = hay.indexOf(q); i >= 0; i = hay.indexOf(q, i + q.length)) {
+            out.push({ line, start: i, end: i + q.length });
+        }
+    });
+    return out;
+}

@@ -4,6 +4,7 @@ import type { LogFile, Manifest } from "./api";
 import type { ContainerStatus, Pod } from "./k8s";
 import {
     defaultLog,
+    findMatches,
     formatLogParams,
     parseLogParams,
     podLogs,
@@ -200,5 +201,29 @@ describe("log params", () => {
                 line: 7,
             }).toString()
         ).toBe("x=1&previous=1&line=7&container=app");
+    });
+});
+
+describe("findMatches", () => {
+    it("finds several matches on one line, ignoring case", () => {
+        expect(findMatches(["a Foo foo", "none", "FOO"], "foo")).toEqual([
+            { line: 0, start: 2, end: 5 },
+            { line: 0, start: 6, end: 9 },
+            { line: 2, start: 0, end: 3 },
+        ]);
+    });
+    it("finds nothing when there is no match", () => {
+        expect(findMatches(["a", "b"], "z")).toEqual([]);
+    });
+    it("matches nothing for an empty query", () => {
+        expect(findMatches(["a", ""], "")).toEqual([]);
+    });
+    it("takes regex characters literally", () => {
+        expect(findMatches(["a.b axb", "f(x)[0]*"], ".")).toEqual([
+            { line: 0, start: 1, end: 2 },
+        ]);
+        expect(findMatches(["f(x)[0]*"], "(x)[0]*")).toEqual([
+            { line: 0, start: 1, end: 8 },
+        ]);
     });
 });

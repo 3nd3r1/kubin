@@ -5,8 +5,10 @@ import { useSearchParams } from "react-router";
 import { type LogFile, type Manifest, getLog } from "@/lib/api";
 import type { Pod } from "@/lib/k8s";
 import {
+    type Match,
     defaultLog,
     errorLine,
+    findMatches,
     formatLogParams,
     parseLogParams,
     podLogs,
@@ -41,7 +43,15 @@ export function PodLogs({
     }, [logs, wanted]);
     const selected = fromUrl ?? initial?.file;
     const line = fromUrl ? wanted.line : undefined;
+    const query = params.get("q") ?? "";
     const section = useRef<HTMLElement>(null);
+
+    const setQuery = (q: string) => {
+        const next = new URLSearchParams(params);
+        if (q) next.set("q", q);
+        else next.delete("q");
+        setParams(next, { replace: true, preventScrollReset: true });
+    };
 
     const select = (f: LogFile, n?: number) =>
         setParams(
@@ -125,6 +135,8 @@ export function PodLogs({
                     file={selected}
                     tailLines={manifest.logs.tail_lines}
                     line={line}
+                    query={query}
+                    onQuery={setQuery}
                     onLine={(n) => select(selected, n)}
                 />
             </div>
@@ -184,12 +196,16 @@ function LogView({
     file,
     tailLines,
     line,
+    query,
+    onQuery,
     onLine,
 }: {
     snapshotId: string;
     file: LogFile;
     tailLines: number;
     line?: number;
+    query: string;
+    onQuery: (q: string) => void;
     onLine: (n: number) => void;
 }) {
     const state = useFetch(
@@ -207,6 +223,21 @@ function LogView({
                 : [],
         [state]
     );
+    // Computed once per query and log, over every line.
+    const matches = useMemo(() => findMatches(lines, query), [lines, query]);
+    const byLine = useMemo(() => {
+        const m = new Map<number, number[]>();
+        matches.forEach((x, i) => m.set(x.line, [...(m.get(x.line) ?? []), i]));
+        return m;
+    }, [matches]);
+    // The index belongs to one set of matches: a new query or log resets it.
+    const [pos, setPos] = useState<{ of: Match[]; i: number }>({
+        of: matches,
+        i: 0,
+    });
+    const cur = pos.of === matches ? pos.i : 0;
+    const setCur = (f: (c: number) => number) =>
+        setPos({ of: matches, i: f(cur) });
     const height = Math.min(MAX_HEIGHT, lines.length * LINE_HEIGHT + 16);
 
     // Without a line, open at the end, where a crash shows up. With one,
@@ -223,6 +254,22 @@ function LogView({
         setScrollTop(el.scrollTop);
         setViewport(el.clientHeight);
     }, [lines, line]);
+
+    // Bring the current match into the middle of the view.
+    useLayoutEffect(() => {
+        const el = box.current;
+        const m = matches[cur];
+        if (!el || !m) return;
+        el.scrollTop = Math.max(
+            0,
+            m.line * LINE_HEIGHT - (el.clientHeight - LINE_HEIGHT) / 2
+        );
+        setScrollTop(el.scrollTop);
+        setViewport(el.clientHeight);
+    }, [matches, cur]);
+
+    const step = (d: number) =>
+        setCur((c) => (c + d + matches.length) % matches.length);
 
     switch (state.status) {
         case "loading":
@@ -252,6 +299,48 @@ function LogView({
                     Older lines weren't captured.
                 </p>
             )}
+            <div className="flex items-center gap-2">
+                <input
+                    type="search"
+                    value={query}
+                    placeholder="Search log"
+                    aria-label="Search log"
+                    onChange={(e) => onQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key !== "Enter" || matches.length === 0) return;
+                        e.preventDefault();
+                        step(e.shiftKey ? -1 : 1);
+                    }}
+                    className="bg-background h-8 min-w-0 flex-1 rounded-md border px-2 text-sm"
+                />
+                <span
+                    aria-live="polite"
+                    className="text-muted-foreground text-xs tabular-nums"
+                >
+                    {query &&
+                        (matches.length
+                            ? `${cur + 1} of ${matches.length}`
+                            : "No matches")}
+                </span>
+                <button
+                    type="button"
+                    aria-label="Previous match"
+                    disabled={matches.length === 0}
+                    onClick={() => step(-1)}
+                    className="hover:bg-muted rounded-md border px-2 py-1 text-sm disabled:opacity-50"
+                >
+                    Prev
+                </button>
+                <button
+                    type="button"
+                    aria-label="Next match"
+                    disabled={matches.length === 0}
+                    onClick={() => step(1)}
+                    className="hover:bg-muted rounded-md border px-2 py-1 text-sm disabled:opacity-50"
+                >
+                    Next
+                </button>
+            </div>
             <div
                 ref={box}
                 role="log"
@@ -299,7 +388,16 @@ function LogView({
                                     >
                                         {n}
                                     </button>
-                                    <span className="pl-2">{l || " "}</span>
+                                    <span className="pl-2">
+                                        {highlight(
+                                            l || " ",
+                                            (byLine.get(n - 1) ?? []).map(
+                                                (i) => i
+                                            ),
+                                            matches,
+                                            cur
+                                        )}
+                                    </span>
                                 </div>
                             );
                         })}
@@ -308,4 +406,34 @@ function LogView({
             </div>
         </div>
     );
+}
+
+/** The line's text with its matches wrapped in marks; the current one stands out. */
+function highlight(
+    text: string,
+    ids: number[],
+    matches: Match[],
+    cur: number
+): React.ReactNode {
+    if (ids.length === 0) return text;
+    const parts: React.ReactNode[] = [];
+    let at = 0;
+    for (const i of ids) {
+        const m = matches[i];
+        parts.push(text.slice(at, m.start));
+        parts.push(
+            <mark
+                key={i}
+                className={cn(
+                    "text-foreground rounded-sm",
+                    i === cur ? "bg-orange-400" : "bg-yellow-300/70"
+                )}
+            >
+                {text.slice(m.start, m.end)}
+            </mark>
+        );
+        at = m.end;
+    }
+    parts.push(text.slice(at));
+    return parts;
 }
