@@ -5,6 +5,7 @@ All tools come from `nix-shell` (or `direnv allow` once). That includes the pinn
 ## What works today
 
 ```bash
+make check                            # lint, typecheck, test and build every part; run before committing (after `make -C ui install` once)
 cd cli && make test                   # unit tests
 cd server && make test                # unit tests
 cd server && make run                 # server on :8080, data in server/data/

@@ -1,10 +1,11 @@
 ---
 id: TASK-8
 title: Add make check for all parts and run it in CI
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@claude'
 created_date: '2026-11-17T10:04:00Z'
-updated_date: '2026-11-24T09:36:00Z'
+updated_date: '2026-11-24T11:03:00Z'
 labels:
   - deploy
   - tier:2
@@ -44,14 +45,20 @@ No single command says the repo is healthy, and no CI runs the tests. The orches
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `make check` at the root runs golangci-lint and go test for cli and server, and lint, typecheck, test and build for ui, and exits non-zero when any of them fails
-- [ ] #2 `.github/workflows/ci.yml` installs the UI dependencies and runs `make check` on pushes to main and on pull requests
-- [ ] #3 The repo passes it: `make check` exits 0 and leaves `git status` clean
-- [ ] #4 `docs/development.md` names `make check` as the command to run before committing
+- [x] #1 `make check` at the root runs golangci-lint and go test for cli and server, and lint, typecheck, test and build for ui, and exits non-zero when any of them fails
+- [x] #2 `.github/workflows/ci.yml` installs the UI dependencies and runs `make check` on pushes to main and on pull requests
+- [x] #3 The repo passes it: `make check` exits 0 and leaves `git status` clean
+- [x] #4 `docs/development.md` names `make check` as the command to run before committing
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 make check exits 0, and git status is clean afterwards
-- [ ] #2 nix-shell -p actionlint --run "actionlint .github/workflows/ci.yml" passes
+- [x] #1 make check exits 0, and git status is clean afterwards
+- [x] #2 nix-shell -p actionlint --run "actionlint .github/workflows/ci.yml" passes
 <!-- DOD:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added root make check (cli and server lint+test, ui lint, typecheck, test, build), cli lint target, .github/workflows/ci.yml (setup-go from server/go.mod, node 22, golangci-lint v2.15.0, ui install, make check), and docs. make check passed and git status stayed clean; actionlint passes.
+<!-- SECTION:FINAL_SUMMARY:END -->

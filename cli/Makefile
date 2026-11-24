@@ -1,6 +1,6 @@
 # Kubin CLI Makefile
 
-.PHONY: help dev build test clean
+.PHONY: help dev build test lint clean
 
 help: ## Show this help message
 	@echo "Kubin CLI Commands:"
@@ -18,6 +18,9 @@ build: ## Build CLI binary
 test: ## Run tests
 	@echo "🧪 Running tests..."
 	go test ./...
+
+lint: ## Run golangci-lint
+	golangci-lint run ./...
 
 clean: ## Clean build artifacts
 	@echo "🧹 Cleaning..."

@@ -1,7 +1,7 @@
 # Kubin Development Makefile
 
 # Default target
-.PHONY: help image
+.PHONY: help image check
 help: ## Show this help message
 	@echo "Kubin Development Commands:"
 	@echo ""
@@ -9,3 +9,13 @@ help: ## Show this help message
 
 image: ## Build the kubin image (UI and server) as kubin:dev
 	docker build -t kubin:dev .
+
+check: ## Lint and test everything: cli, server, ui (run `make -C ui install` first)
+	$(MAKE) -C cli lint
+	$(MAKE) -C cli test
+	$(MAKE) -C server lint
+	$(MAKE) -C server test
+	$(MAKE) -C ui lint
+	$(MAKE) -C ui typecheck
+	$(MAKE) -C ui test
+	$(MAKE) -C ui build
