@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import type { ResourceItem } from "./api";
 import {
+    configMapNames,
     findOwner,
     ownedBy,
     ownedKind,
     ownerKind,
+    podSpecOf,
     podsFor,
     podsOnNode,
     selectorMatches,
@@ -129,5 +131,71 @@ describe("owners", () => {
             kind: "Widget",
             group: "x.io",
         });
+    });
+});
+
+describe("configMapNames", () => {
+    it("reads envFrom, env valueFrom, volumes and projected volumes", () => {
+        expect(
+            configMapNames({
+                containers: [
+                    {
+                        envFrom: [{ configMapRef: { name: "b" } }],
+                        env: [
+                            {},
+                            { valueFrom: { configMapKeyRef: { name: "c" } } },
+                        ],
+                    },
+                ],
+                volumes: [
+                    { configMap: { name: "d" } },
+                    { projected: { sources: [{ configMap: { name: "e" } }] } },
+                ],
+            })
+        ).toEqual(["b", "c", "d", "e"]);
+    });
+
+    it("reads initContainers and lists a name once, sorted", () => {
+        expect(
+            configMapNames({
+                initContainers: [
+                    { envFrom: [{ configMapRef: { name: "z" } }] },
+                ],
+                containers: [{ envFrom: [{ configMapRef: { name: "a" } }] }],
+                volumes: [{ configMap: { name: "z" } }],
+            })
+        ).toEqual(["a", "z"]);
+    });
+
+    it("returns nothing without references", () => {
+        expect(configMapNames(undefined)).toEqual([]);
+        expect(configMapNames({ containers: [{ env: [{}] }] })).toEqual([]);
+    });
+});
+
+describe("podSpecOf", () => {
+    const spec = { containers: [] };
+    it("finds the spec for each kind", () => {
+        expect(podSpecOf({ kind: "Pod", spec })).toBe(spec);
+        for (const kind of [
+            "Deployment",
+            "ReplicaSet",
+            "StatefulSet",
+            "DaemonSet",
+            "Job",
+        ])
+            expect(podSpecOf({ kind, spec: { template: { spec } } })).toBe(
+                spec
+            );
+        expect(
+            podSpecOf({
+                kind: "CronJob",
+                spec: { jobTemplate: { spec: { template: { spec } } } },
+            })
+        ).toBe(spec);
+    });
+
+    it("returns undefined for other kinds", () => {
+        expect(podSpecOf({ kind: "Service", spec })).toBeUndefined();
     });
 });

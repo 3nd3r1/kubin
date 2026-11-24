@@ -41,7 +41,12 @@ export type ContainerStatus = {
     lastState?: ContainerState;
 };
 
-export type Container = { name: string; image?: string };
+export type Container = {
+    name: string;
+    image?: string;
+    envFrom?: { configMapRef?: { name?: string } }[];
+    env?: { valueFrom?: { configMapKeyRef?: { name?: string } } }[];
+};
 
 export type Pod = {
     apiVersion?: string;
@@ -51,6 +56,10 @@ export type Pod = {
         nodeName?: string;
         containers?: Container[];
         initContainers?: (Container & { restartPolicy?: string })[];
+        volumes?: {
+            configMap?: { name?: string };
+            projected?: { sources?: { configMap?: { name?: string } }[] };
+        }[];
     };
     status?: {
         phase?: string;

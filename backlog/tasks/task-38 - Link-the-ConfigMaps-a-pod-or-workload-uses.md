@@ -1,10 +1,11 @@
 ---
 id: TASK-38
 title: Link the ConfigMaps a pod or workload uses
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@claude'
 created_date: '2026-11-19T14:45:00Z'
-updated_date: '2026-11-19T14:50:00Z'
+updated_date: '2026-11-24T08:06:00Z'
 labels:
   - ui
   - tier:3
@@ -49,14 +50,20 @@ In the new m-0 demo (user, 2026-11-19) the `api` Deployment crash-loops because 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The detail pages of a Pod, Deployment, ReplicaSet, StatefulSet, DaemonSet, Job and CronJob show a ConfigMaps section that lists each ConfigMap the pod spec references once, as a link to the ConfigMap's detail
-- [ ] #2 A referenced ConfigMap that is not in the snapshot shows as plain text marked "not in snapshot", never as a link
-- [ ] #3 An object that references no ConfigMap shows no ConfigMaps section and makes no ConfigMap request
-- [ ] #4 `ui/src/lib/relations.test.ts` covers envFrom, env valueFrom configMapKeyRef, configMap volumes, projected volumes, initContainers, a name referenced twice, the pod spec lookup for each kind, and a spec with no references
+- [x] #1 The detail pages of a Pod, Deployment, ReplicaSet, StatefulSet, DaemonSet, Job and CronJob show a ConfigMaps section that lists each ConfigMap the pod spec references once, as a link to the ConfigMap's detail
+- [x] #2 A referenced ConfigMap that is not in the snapshot shows as plain text marked "not in snapshot", never as a link
+- [x] #3 An object that references no ConfigMap shows no ConfigMaps section and makes no ConfigMap request
+- [x] #4 `ui/src/lib/relations.test.ts` covers envFrom, env valueFrom configMapKeyRef, configMap volumes, projected volumes, initContainers, a name referenced twice, the pod spec lookup for each kind, and a spec with no references
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 `nix-shell --run 'cd ui && make lint && make typecheck && make test && make build'` passes
-- [ ] #2 The task's commits change nothing under `server/`, `cli/` or `docs/snapshot-format.md` (check with `git log --stat`)
+- [x] #1 `nix-shell --run 'cd ui && make lint && make typecheck && make test && make build'` passes
+- [x] #2 The task's commits change nothing under `server/`, `cli/` or `docs/snapshot-format.md` (check with `git log --stat`)
 <!-- DOD:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added podSpecOf and configMapNames to relations.ts with tests, a ConfigMaps section in RelatedResources (links found ConfigMaps, plain text '(not in snapshot)' for missing ones, nothing and no request when no references or no ConfigMap in counts), and the pod spec fields in k8s.ts. ui lint, typecheck, test and build pass. The component itself has no test and was not checked in a browser.
+<!-- SECTION:FINAL_SUMMARY:END -->

@@ -4,11 +4,70 @@ import { kinds } from "./kinds";
 
 export type OwnerRef = NonNullable<ObjectMeta["ownerReferences"]>[number];
 
+type ConfigMapSource = { configMap?: { name?: string } };
+type Container = {
+    envFrom?: { configMapRef?: { name?: string } }[];
+    env?: { valueFrom?: { configMapKeyRef?: { name?: string } } }[];
+};
+
+/** The parts of a pod spec that can reference a ConfigMap. */
+export type PodSpec = {
+    containers?: Container[];
+    initContainers?: Container[];
+    volumes?: (ConfigMapSource & {
+        projected?: { sources?: ConfigMapSource[] };
+    })[];
+};
+
 type Obj = {
     kind?: string;
     metadata?: ObjectMeta;
-    spec?: { selector?: Record<string, string>; nodeName?: string };
+    spec?: {
+        selector?: Record<string, string>;
+        nodeName?: string;
+        template?: { spec?: PodSpec };
+        jobTemplate?: { spec?: { template?: { spec?: PodSpec } } };
+    } & PodSpec;
 };
+
+/** The pod spec of a Pod or of a workload's pod template, if the kind has one. */
+export function podSpecOf(object: Obj): PodSpec | undefined {
+    const spec = object.spec;
+    switch (object.kind) {
+        case "Pod":
+            return spec;
+        case "Deployment":
+        case "ReplicaSet":
+        case "StatefulSet":
+        case "DaemonSet":
+        case "Job":
+            return spec?.template?.spec;
+        case "CronJob":
+            return spec?.jobTemplate?.spec?.template?.spec;
+        default:
+            return undefined;
+    }
+}
+
+/** Names of the ConfigMaps a pod spec references, each once, sorted. */
+export function configMapNames(spec: PodSpec | undefined): string[] {
+    const names = new Set<string>();
+    const add = (n: string | undefined) => {
+        if (n) names.add(n);
+    };
+    for (const c of [
+        ...(spec?.containers ?? []),
+        ...(spec?.initContainers ?? []),
+    ]) {
+        for (const e of c.envFrom ?? []) add(e.configMapRef?.name);
+        for (const e of c.env ?? []) add(e.valueFrom?.configMapKeyRef?.name);
+    }
+    for (const v of spec?.volumes ?? []) {
+        add(v.configMap?.name);
+        for (const s of v.projected?.sources ?? []) add(s.configMap?.name);
+    }
+    return [...names].sort();
+}
 
 /** The kind each owner kind owns. Only these pairs are shown. */
 const owned: Record<string, string> = {

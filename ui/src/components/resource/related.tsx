@@ -5,10 +5,13 @@ import type { ObjectMeta } from "@/lib/k8s";
 import { segmentFor } from "@/lib/kinds";
 import {
     type OwnerRef,
+    type PodSpec,
+    configMapNames,
     findOwner,
     ownedBy,
     ownedKind,
     ownerKind,
+    podSpecOf,
     podsFor,
     podsOnNode,
     servicesFor,
@@ -21,7 +24,12 @@ import { LoadError, Loading } from "@/components/common/states";
 type Obj = {
     kind?: string;
     metadata?: ObjectMeta;
-    spec?: { selector?: Record<string, string>; nodeName?: string };
+    spec?: {
+        selector?: Record<string, string>;
+        nodeName?: string;
+        template?: { spec?: PodSpec };
+        jobTemplate?: { spec?: { template?: { spec?: PodSpec } } };
+    } & PodSpec;
 };
 
 function itemPath(id: string, i: ResourceItem) {
@@ -183,6 +191,72 @@ function Related({
     );
 }
 
+/** ConfigMaps the pod spec references: links, or text when not in the snapshot. */
+function ConfigMaps({
+    id,
+    namespace,
+    names,
+    depKey,
+}: {
+    id: string;
+    namespace: string;
+    names: string[];
+    depKey: string;
+}) {
+    const state = useFetch(
+        (signal) =>
+            listResources<Obj>(id, { kind: "ConfigMap", namespace }, signal),
+        [depKey, "ConfigMaps"]
+    );
+    let body;
+    if (state.status === "loading") body = <Loading what="ConfigMaps" />;
+    else if (state.status !== "ok")
+        body = (
+            <LoadError
+                message={
+                    state.status === "error"
+                        ? state.message
+                        : "snapshot not found"
+                }
+            />
+        );
+    else {
+        const data = state.data;
+        body = (
+            <ul className="space-y-1 text-sm">
+                {names.map((n) => {
+                    const found = data.find((c) => c.name === n);
+                    return (
+                        <li key={n} className="font-mono">
+                            {found ? (
+                                <Link
+                                    to={itemPath(id, found)}
+                                    className="break-all hover:underline"
+                                >
+                                    {n}
+                                </Link>
+                            ) : (
+                                <span className="break-all">
+                                    {n}{" "}
+                                    <span className="font-sans text-muted-foreground">
+                                        (not in snapshot)
+                                    </span>
+                                </span>
+                            )}
+                        </li>
+                    );
+                })}
+            </ul>
+        );
+    }
+    return (
+        <section aria-label="ConfigMaps" className="space-y-2">
+            <h3 className="text-lg font-semibold">ConfigMaps</h3>
+            {body}
+        </section>
+    );
+}
+
 /** What the object owns, plus services, pods or nodes around it. */
 export function RelatedResources({
     snapshot,
@@ -244,6 +318,17 @@ export function RelatedResources({
                 depKey={key}
                 load={list("Pod", "")}
                 pick={(items) => podsOnNode(meta.name ?? "", items)}
+            />
+        );
+    const cms = configMapNames(podSpecOf(object));
+    if (cms.length > 0 && has("ConfigMap"))
+        sections.push(
+            <ConfigMaps
+                key="configmaps"
+                id={id}
+                namespace={ns}
+                names={cms}
+                depKey={key}
             />
         );
     return <>{sections}</>;
