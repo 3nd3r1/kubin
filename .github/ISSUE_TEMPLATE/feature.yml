@@ -1,7 +1,6 @@
 name: Feature
 description: A user-facing feature or improvement.
 labels: ["type:feature"]
-projects: [3nd3r1/6]
 body:
   - type: textarea
     attributes:
@@ -10,7 +9,7 @@ body:
       placeholder: |
         As a [user role], I want [feature], so that [benefit].
         Example:
-        As a developer, I want `kubin deploy --dry-run`, so I can test deployments safely.
+        As a developer, I want `kubin create --output ./snapshot.tgz`, so I can test deployments safely.
     validations:
       required: true
   - type: textarea
@@ -26,15 +25,10 @@ body:
       label: "Component"
       multiple: true
       options:
-        - "UI"
-        - "API Gateway"
-        - "Upload Orchestrator"
-        - "Metadata Service"
-        - "Storage Service"
-        - "Log Processor"
-        - "Query Service"
-        - "Analytics Service"
         - "CLI"
+        - "Server"
+        - "UI"
+        - "Deploy"
   - type: textarea
     attributes:
       label: "Additional Context"

@@ -10,20 +10,15 @@ jobs:
       issues: write
     steps:
       - name: Check for Component Selection
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           script: |
             const { issue, repository } = context.payload;
             const componentMap = {
+              "CLI": "component:cli",
+              "Server": "component:server",
               "UI": "component:ui",
-              "API Gateway": "component:api-gateway",
-              "Upload Orchestrator": "component:upload-orchestrator",
-              "Metadata Service": "component:metadata-service",
-              "Storage Service": "component:storage-service",
-              "Log Processor": "components:log-processor",
-              "Query Service": "components:query-service",
-              "Analytics Service": "components:analytics-service",
-              "CLI": "components:cli"
+              "Deploy": "component:deploy"
             };
 
             // Extract component field from issue body - handles both single and multiple selections

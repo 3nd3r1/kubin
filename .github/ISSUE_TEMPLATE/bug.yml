@@ -2,13 +2,12 @@ name: Bug Report
 description: Report unexpected behavior.
 title: "Something is broken"
 labels: ["type:bug"]
-projects: [3nd3r1/6]
 body:
   - type: textarea
     attributes:
       label: "Steps to Reproduce"
       placeholder: |
-        1. Run `kubin upload ./broken.json`
+        1. Run `kubin create`
         2. Observe error: "Failed to parse JSON"
     validations:
       required: true
@@ -24,15 +23,10 @@ body:
       label: "Component"
       multiple: true
       options:
-        - "UI"
-        - "API Gateway"
-        - "Upload Orchestrator"
-        - "Metadata Service"
-        - "Storage Service"
-        - "Log Processor"
-        - "Query Service"
-        - "Analytics Service"
         - "CLI"
+        - "Server"
+        - "UI"
+        - "Deploy"
   - type: textarea
     attributes:
       label: "Additional Context"
