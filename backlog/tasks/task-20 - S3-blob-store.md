@@ -4,11 +4,10 @@ title: S3 blob store
 status: To Do
 assignee: []
 created_date: '2026-11-17T10:05:00Z'
-updated_date: '2026-11-24T09:37:00Z'
+updated_date: '2026-11-24T10:31:00Z'
 labels:
   - server
   - tier:3
-milestone: m-3
 dependencies:
   - TASK-3
 priority: high
@@ -76,3 +75,15 @@ Postgres (TASK-26), the chart and compose, moving existing blobs between stores,
 <!-- SECTION:NOTES:BEGIN -->
 From TASK-14: blob.Store has OpenRange(key, offset, length) for serving logs; map it to a ranged GetObject.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-11-24T10:31:00Z
+
+---
+
+Left m-3 with decision-12: one node with a local directory is enough for now (docs/capacity.md). Comes back when one node runs out.
+
+---
+<!-- COMMENTS:END -->

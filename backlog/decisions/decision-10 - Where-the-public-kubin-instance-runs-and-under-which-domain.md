@@ -2,7 +2,9 @@
 id: decision-10
 title: Where the public kubin instance runs and under which domain
 date: '2026-11-24T09:20:00Z'
-status: proposed
+status: >-
+  rejected: the public instance runs as one container on the user's Coolify
+  server, see decision-12
 ---
 ## Context
 

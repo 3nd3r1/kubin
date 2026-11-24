@@ -4,11 +4,10 @@ title: Postgres as an optional database
 status: To Do
 assignee: []
 created_date: '2026-11-17T10:11:00Z'
-updated_date: '2026-11-24T09:36:00Z'
+updated_date: '2026-11-24T10:31:00Z'
 labels:
   - server
   - tier:3
-milestone: m-3
 dependencies:
   - TASK-3
 priority: medium
@@ -62,3 +61,15 @@ SQLite is the default (decision-2), but several server replicas can't share one 
 - [ ] #1 cd server && CI=true make test && make lint passes, with Docker running so the Postgres tests run rather than skip
 - [ ] #2 Manual: docker run -d --name kubin-pg -e POSTGRES_PASSWORD=kubin -p 15432:5432 postgres:17-alpine, then cd server && SERVER_DATABASE_URL="postgres://postgres:kubin@localhost:15432/postgres?sslmode=disable" make run, and curl localhost:8080/readyz prints ok
 <!-- DOD:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-11-24T10:31:00Z
+
+---
+
+Left m-3 with decision-12: one node with SQLite is enough for now (docs/capacity.md). Comes back when one node runs out.
+
+---
+<!-- COMMENTS:END -->
