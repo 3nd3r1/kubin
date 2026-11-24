@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@human'
 created_date: '2026-11-19T14:57:00Z'
-updated_date: '2026-11-23T15:32:00Z'
+updated_date: '2026-11-24T08:16:00Z'
 labels:
   - human
 milestone: m-0
@@ -26,10 +26,10 @@ The README should open with a narrated video by the user, face bubble included, 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A free throwaway Linear workspace exists with an example ticket
-- [ ] #2 k9s is installed or opened from nix-shell and ./demo/setup.sh has run
-- [ ] #3 A narrated video of about 75 seconds with a face bubble and burned-in captions is recorded from the Say lines of demo/video-script.md (TASK-40)
-- [ ] #4 The kubin link is pasted into the Linear ticket on camera
-- [ ] #5 The final GIF from TASK-41 is reviewed
-- [ ] #6 The mp4 is dragged into the GitHub README editor and plays inline above the GIF at the placeholder comment
+- [x] #1 A free throwaway Linear workspace exists with an example ticket
+- [x] #2 k9s is installed or opened from nix-shell and ./demo/setup.sh has run
+- [x] #3 A narrated video of about 75 seconds with a face bubble and burned-in captions is recorded from the Say lines of demo/video-script.md (TASK-40)
+- [x] #4 The kubin link is pasted into the Linear ticket on camera
+- [x] #5 The final GIF from TASK-41 is reviewed
+- [x] #6 The mp4 is dragged into the GitHub README editor and plays inline above the GIF at the placeholder comment
 <!-- AC:END -->

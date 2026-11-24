@@ -2,7 +2,7 @@
 id: decision-9
 title: GitHub issues stay open with a bug and a feature template
 date: '2026-11-24T09:20:00Z'
-status: proposed
+status: accepted
 ---
 ## Context
 

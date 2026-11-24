@@ -2,7 +2,7 @@
 id: decision-8
 title: 'm-0 demo: a broken checkout app taken from k9s to a ticket link'
 date: '2026-11-19T14:46:00Z'
-status: proposed
+status: accepted
 ---
 ## Context
 
