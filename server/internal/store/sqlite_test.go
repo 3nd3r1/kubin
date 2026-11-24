@@ -269,3 +269,56 @@ func TestLogs(t *testing.T) {
 		t.Errorf("rolled back snapshot left %d log rows", n)
 	}
 }
+
+func bigSnapshotTx(ctx context.Context, s *SQL, id string, n int) error {
+	tx, err := s.BeginSnapshot(ctx, testSnapshot(id))
+	if err != nil {
+		return err
+	}
+	for i := 0; i < n; i++ {
+		r := Resource{Group: "", Version: "v1", Kind: "ConfigMap", Namespace: "default",
+			Name: fmt.Sprintf("cm-%d", i), Object: []byte(`{"data":"` + strings.Repeat("x", 2000) + `"}`)}
+		if err := tx.AddResource(ctx, r); err != nil {
+			_ = tx.Rollback()
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func TestConcurrentUploadsAllSucceed(t *testing.T) {
+	ctx := context.Background()
+	s, _ := openTest(t)
+	const uploads = 8
+	errs := make(chan error, uploads)
+	for i := 0; i < uploads; i++ {
+		go func(i int) { errs <- bigSnapshotTx(ctx, s, fmt.Sprintf("snap-%d", i), 600) }(i)
+	}
+	for i := 0; i < uploads; i++ {
+		if err := <-errs; err != nil {
+			t.Errorf("upload: %v", err)
+		}
+	}
+	if n := count(t, s, `SELECT COUNT(*) FROM snapshots`); n != uploads {
+		t.Fatalf("%d snapshots, want %d", n, uploads)
+	}
+}
+
+func TestReadsWorkDuringOpenUpload(t *testing.T) {
+	ctx := context.Background()
+	s, _ := openTest(t)
+	if err := bigSnapshotTx(ctx, s, "old", 5); err != nil {
+		t.Fatal(err)
+	}
+	tx, err := s.BeginSnapshot(ctx, testSnapshot("open"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err := s.Ping(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if n := count(t, s, `SELECT COUNT(*) FROM resources WHERE snapshot_id = 'old'`); n != 5 {
+		t.Fatalf("read %d resources, want 5", n)
+	}
+}

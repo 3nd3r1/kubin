@@ -17,7 +17,8 @@ var migrations embed.FS
 
 // SQL is a Store on database/sql. The dialect only picks the migrations.
 type SQL struct {
-	db *sql.DB
+	db  *sql.DB // reads
+	wdb *sql.DB // writes; may be the same pool as db
 }
 
 // migrate applies every migration in migrations/<dialect> that isn't recorded
@@ -87,10 +88,18 @@ func applyMigration(ctx context.Context, db *sql.DB, version int, body string) e
 
 func (s *SQL) Ping(ctx context.Context) error { return s.db.PingContext(ctx) }
 
-func (s *SQL) Close() error { return s.db.Close() }
+func (s *SQL) Close() error {
+	err := s.wdb.Close()
+	if s.db != s.wdb {
+		if err2 := s.db.Close(); err == nil {
+			err = err2
+		}
+	}
+	return err
+}
 
 func (s *SQL) BeginSnapshot(ctx context.Context, snap Snapshot) (SnapshotTx, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.wdb.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}

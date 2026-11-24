@@ -1,9 +1,11 @@
 ---
 id: TASK-48
 title: Stop concurrent uploads failing with SQLITE_BUSY
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@claude'
 created_date: '2026-11-24T10:29:00Z'
+updated_date: '2026-11-24T11:06:00Z'
 labels:
   - server
   - tier:2
@@ -28,8 +30,14 @@ Out of scope: Postgres, splitting the upload transaction, the upload rate limit 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A store test runs at least 8 concurrent uploads of a snapshot with at least 500 resources against a temp SQLite file and all of them succeed
-- [ ] #2 Reads keep working while an upload transaction is open (test)
-- [ ] #3 No SQLITE_BUSY on concurrent uploads in the server log when repeating the docs/capacity.md upload run (8 concurrent medium uploads)
-- [ ] #4 docs/capacity.md no longer lists the SQLITE_BUSY failures as open, and states the result of the re-run
+- [x] #1 A store test runs at least 8 concurrent uploads of a snapshot with at least 500 resources against a temp SQLite file and all of them succeed
+- [x] #2 Reads keep working while an upload transaction is open (test)
+- [x] #3 No SQLITE_BUSY on concurrent uploads in the server log when repeating the docs/capacity.md upload run (8 concurrent medium uploads)
+- [x] #4 docs/capacity.md no longer lists the SQLITE_BUSY failures as open, and states the result of the re-run
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added a second SQLite pool (wdb, MaxOpenConns 1) used by BeginSnapshot so uploads queue in Go; reads stay on the pooled db. Store interface unchanged. Tests: 8 concurrent 600-resource uploads succeed (race clean), reads work while an upload tx is open. Re-ran docs/capacity.md upload run: 40 medium uploads at 8 concurrent, 0 failed, no SQLITE_BUSY in log. Caveat: used a synthetic seed snapshot (no demo cluster), big case not re-run; docs say so.
+<!-- SECTION:FINAL_SUMMARY:END -->

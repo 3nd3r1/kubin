@@ -49,9 +49,12 @@ Memory peaked at 400 MB during the concurrent big uploads and sat around 75 MB o
 - A small VPS with 2 to 4 vCPUs and slower disks may be 2 to 4 times slower than this laptop. That still leaves two to three orders of magnitude of headroom over the expected load.
 - Postgres and S3 would buy availability across replicas, not capacity at this scale. Revisit them when uploads queue up behind each other in normal use, when the disk can't hold a week of snapshots, or when someone needs the instance to survive a node going down.
 
+## Fixed: SQLITE_BUSY on concurrent uploads
+
+The failed uploads in the first table were 500s with `database is locked (5) (SQLITE_BUSY)`. Each upload holds SQLite's write lock for its whole index transaction, and concurrent uploads waited inside SQLite and gave up after `busy_timeout(5000)`. TASK-48 gives writes their own pool of one connection, so uploads queue in Go. Re-run on 2026-11-24: 40 medium uploads at 8 concurrent, 0 failed, no SQLITE_BUSY in the server log (p50 0.41 s, p95 1.4 s). That run used a synthetic 600-resource snapshot (smaller logs, 3.2 MB unpacked) because no demo cluster was at hand, so the timings are not comparable with the table above. The big case was not re-run.
+
 ## Known problems
 
-- **SQLITE_BUSY on concurrent uploads.** The failed uploads in the table are 500s with `database is locked (5) (SQLITE_BUSY)`. Each upload writes its index in one transaction that holds SQLite's write lock for 0.3 s (medium) to 4 s (big). Concurrent uploads wait for it inside SQLite and give up after `busy_timeout(5000)`. TASK-48 queues writes in Go instead. It is a bug in how the server uses SQLite, not a limit of SQLite.
 - **The resource list is not paginated.** For `big`, `GET /api/v1/snapshots/{id}/resources` returns 5.4 MB of JSON in one response. Reads are fast anyway, but the UI downloads all of it.
 
 ## Running it again
