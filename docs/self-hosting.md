@@ -19,7 +19,7 @@ mkdir -p ./kubin-data && sudo chown 1001:1001 ./kubin-data
 docker run -d -p 8080:8080 -v "$PWD/kubin-data:/data" kubin
 ```
 
-Docker compose with Postgres and MinIO (TASK-27) and the Helm chart (TASK-7) come later. With SQLite and a local directory, run one replica.
+A docker compose file (TASK-27) and the Helm chart (TASK-7) come later. Both run one replica on SQLite and a volume, like `docker run`. One container handles far more than a team or a public instance needs ([capacity.md](capacity.md)), so Postgres and S3 wait until something there runs out (decision-12).
 
 ## Behind a proxy
 

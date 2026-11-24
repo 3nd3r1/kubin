@@ -78,14 +78,14 @@ The same image covers three setups:
 | Setup | For | Runs |
 |---|---|---|
 | `docker run -v kubin-data:/data` | a team, a homelab, one VM | kubin with SQLite and files in the volume |
-| docker compose (TASK-27) | a small company on one VM | kubin, Postgres, MinIO |
-| Helm chart (TASK-7) | Kubernetes shops, the public instance | several replicas, Postgres, S3, ingress |
+| docker compose (TASK-27) | the same, written down as a file | kubin with SQLite and files in the volume |
+| Helm chart (TASK-7) | Kubernetes shops | one replica, SQLite and files on a PVC, ingress |
 
-SQLite and a local directory limit an install to one replica. More replicas need Postgres and S3. Install steps and configuration are in [self-hosting.md](self-hosting.md).
+The public instance runs as one container on Coolify (decision-12). SQLite and a local directory limit an install to one replica, which is enough ([capacity.md](capacity.md)). Postgres and S3 come back when one node runs out, and then more replicas need both. Install steps and configuration are in [self-hosting.md](self-hosting.md).
 
 ## Load
 
-Upload is synchronous. A snapshot should be a few MB, and unpacking it and inserting the rows is cheap next to receiving the bytes. Nobody has measured this yet. The server keeps no state outside the database and blob store, so it scales by adding replicas.
+Upload is synchronous. A snapshot should be a few MB, and unpacking it and inserting the rows is cheap next to receiving the bytes. One container takes about 3 uploads a second of a 600-resource snapshot and serves about 2,000 reads a second ([capacity.md](capacity.md)). The server keeps no state outside the database and blob store, so it scales by adding replicas.
 
 A queue would let the server answer before indexing finishes. It would not reduce the total work. If indexing ever gets slow enough to hold up uploads, the next step is a jobs table in the database and a worker pool inside the server, and after that letting the CLI upload straight to S3 with presigned URLs. Kafka is not planned.
 
