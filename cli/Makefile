@@ -13,7 +13,7 @@ dev: ## Run CLI in development mode
 
 build: ## Build CLI binary
 	@echo "🔨 Building CLI..."
-	go build -o kubin-cli main.go
+	go build -ldflags "-X github.com/3nd3r1/kubin/cli/cmd.version=$$(git describe --tags --always --dirty) -X github.com/3nd3r1/kubin/cli/cmd.commit=$$(git rev-parse --short=12 HEAD)" -o kubin-cli main.go
 
 test: ## Run tests
 	@echo "🧪 Running tests..."

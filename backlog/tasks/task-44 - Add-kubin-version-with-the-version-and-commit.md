@@ -1,9 +1,11 @@
 ---
 id: TASK-44
 title: Add kubin version with the version and commit
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@claude'
 created_date: '2026-11-24T09:36:00Z'
+updated_date: '2026-11-24T11:09:00Z'
 labels:
   - cli
   - tier:2
@@ -39,15 +41,21 @@ The release workflow (TASK-19), the server's version, the upload User-Agent (it 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `kubin version` prints one line, `kubin <version> (commit <commit>)`, to stdout and exits 0
-- [ ] #2 `-X` ldflags for `cmd.version` and `cmd.commit` set both values, and a test covers the output with both set
-- [ ] #3 Without ldflags, the version and commit come from the Go build info when it has them, else `dev` and `none`; a test covers this with a fake build info
-- [ ] #4 `kubin --version` prints the same line as `kubin version`
-- [ ] #5 `make -C cli build` stamps the version from `git describe --tags --always --dirty` and the 12-character commit
+- [x] #1 `kubin version` prints one line, `kubin <version> (commit <commit>)`, to stdout and exits 0
+- [x] #2 `-X` ldflags for `cmd.version` and `cmd.commit` set both values, and a test covers the output with both set
+- [x] #3 Without ldflags, the version and commit come from the Go build info when it has them, else `dev` and `none`; a test covers this with a fake build info
+- [x] #4 `kubin --version` prints the same line as `kubin version`
+- [x] #5 `make -C cli build` stamps the version from `git describe --tags --always --dirty` and the 12-character commit
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 cd cli && go test ./... && golangci-lint run ./... passes
-- [ ] #2 make -C cli build && ./cli/kubin-cli version prints the commit that git rev-parse --short=12 HEAD prints
+- [x] #1 cd cli && go test ./... && golangci-lint run ./... passes
+- [x] #2 make -C cli build && ./cli/kubin-cli version prints the commit that git rev-parse --short=12 HEAD prints
 <!-- DOD:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added kubin version and commit vars, resolveBuild fallback to Go build info, version command and --version template, and ldflags stamping in cli/Makefile. Tests cover ldflags values, --version, and fake build info.
+<!-- SECTION:FINAL_SUMMARY:END -->
