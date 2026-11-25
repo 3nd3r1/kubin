@@ -3,10 +3,37 @@ package config
 
 import (
 	"fmt"
+	"net/netip"
+	"strings"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
 )
+
+// CIDRs is a comma-separated list of CIDR prefixes from an environment variable.
+type CIDRs []netip.Prefix
+
+func (c *CIDRs) Decode(value string) error {
+	if strings.TrimSpace(value) == "" {
+		*c = nil
+		return nil
+	}
+	parts := strings.Split(value, ",")
+	out := make([]netip.Prefix, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		pfx, err := netip.ParsePrefix(p)
+		if err != nil {
+			return fmt.Errorf("invalid CIDR %q: %w", p, err)
+		}
+		out = append(out, pfx)
+	}
+	*c = out
+	return nil
+}
 
 type Config struct {
 	Port         int           `envconfig:"SERVER_PORT" default:"8080"`
@@ -19,8 +46,14 @@ type Config struct {
 	DataDir string `envconfig:"SERVER_DATA_DIR" default:"data"`
 	// PublicURL is the base for links handed back to the CLI, like
 	// https://kubin.example.com. Empty means taken from the request.
-	PublicURL      string `envconfig:"SERVER_PUBLIC_URL"`
-	MaxUploadBytes int64  `envconfig:"SERVER_MAX_UPLOAD_BYTES" default:"67108864"`
+	PublicURL        string        `envconfig:"SERVER_PUBLIC_URL"`
+	MaxUploadBytes   int64         `envconfig:"SERVER_MAX_UPLOAD_BYTES" default:"67108864"`
+	MaxUnpackedBytes int64         `envconfig:"SERVER_MAX_UNPACKED_BYTES" default:"1073741824"`
+	UploadTimeout    time.Duration `envconfig:"SERVER_UPLOAD_TIMEOUT" default:"5m"`
+	// UploadRate is uploads per client IP per hour. Zero disables the limit.
+	UploadRate     int   `envconfig:"SERVER_UPLOAD_RATE" default:"30"`
+	UploadBurst    int   `envconfig:"SERVER_UPLOAD_BURST" default:"10"`
+	TrustedProxies CIDRs `envconfig:"SERVER_TRUSTED_PROXIES"`
 }
 
 func Load() (Config, error) {

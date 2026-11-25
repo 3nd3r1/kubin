@@ -1,10 +1,11 @@
 ---
 id: TASK-22
 title: Upload limits and rate limiting
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@agy'
 created_date: '2026-11-17T10:05:00Z'
-updated_date: '2026-11-24T09:37:00Z'
+updated_date: '2026-11-25T10:04:00Z'
 labels:
   - server
   - tier:3
@@ -47,15 +48,34 @@ Rate limits on reads, auth, the CLI's `--max-size`, expiry (TASK-21). The CLI al
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 An archive that unpacks past SERVER_MAX_UNPACKED_BYTES gets 413 with a JSON error naming the limit; the compressed limit still gives 413
-- [ ] #2 Uploads over the limit from one client get 429 with Retry-After and a JSON error before the body is read; other clients are unaffected; a rate of 0 turns the limit off
-- [ ] #3 From a proxy in SERVER_TRUSTED_PROXIES the client comes from X-Forwarded-For; from anywhere else the header is ignored
-- [ ] #4 An upload may run up to SERVER_UPLOAD_TIMEOUT, while other routes keep SERVER_READ_TIMEOUT and SERVER_WRITE_TIMEOUT (test with a slow body)
-- [ ] #5 Idle clients are evicted from the limiter, so its memory stays bounded (test)
-- [ ] #6 docs/self-hosting.md documents the new variables and says the limits are per replica
+- [x] #1 An archive that unpacks past SERVER_MAX_UNPACKED_BYTES gets 413 with a JSON error naming the limit; the compressed limit still gives 413
+- [x] #2 Uploads over the limit from one client get 429 with Retry-After and a JSON error before the body is read; other clients are unaffected; a rate of 0 turns the limit off
+- [x] #3 From a proxy in SERVER_TRUSTED_PROXIES the client comes from X-Forwarded-For; from anywhere else the header is ignored
+- [x] #4 An upload may run up to SERVER_UPLOAD_TIMEOUT, while other routes keep SERVER_READ_TIMEOUT and SERVER_WRITE_TIMEOUT (test with a slow body)
+- [x] #5 Idle clients are evicted from the limiter, so its memory stays bounded (test)
+- [x] #6 docs/self-hosting.md documents the new variables and says the limits are per replica
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 cd server && make test && make lint passes
+- [x] #1 cd server && make test && make lint passes
 <!-- DOD:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Add golang.org/x/time/rate to server/go.mod.
+2. In server/internal/snapshot/format.go, introduce TooLargeError (distinct from InvalidError) for unpacked size limit violations and guard against overflow/negative sizes. Update snapshot_test.go to verify TooLargeError.
+3. Add SERVER_MAX_UNPACKED_BYTES, SERVER_UPLOAD_RATE, SERVER_UPLOAD_BURST, SERVER_TRUSTED_PROXIES, and SERVER_UPLOAD_TIMEOUT to server/internal/config/config.go, with CIDR parsing/validation for SERVER_TRUSTED_PROXIES.
+4. Implement an in-memory per-client upload rate limiter in server/internal/api/ratelimit.go using golang.org/x/time/rate, IPv4 / IPv6 /64 keying, trusted-proxy X-Forwarded-For resolution, Retry-After calculation, injectable clock, and lazy eviction of idle clients.
+5. Wire unpacked TooLargeError -> 413, rate limiting (before reading body) -> 429 with Retry-After, and UploadTimeout deadline extension via http.NewResponseController in server/internal/api/snapshots.go, router.go, and server/cmd/main.go.
+6. Add unit and integration tests for unpacked 413, rate limiting (burst/429/body unread/other clients unaffected/rate=0 disabled), trusted proxy XFF handling, idle client eviction, and slow-body upload timeout vs normal route timeouts.
+7. Update docs/self-hosting.md with the new environment variables, trusted proxies, and per-replica limit note.
+8. Run cd server && make test && make lint and verify all acceptance criteria.
+<!-- SECTION:PLAN:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added configurable unpacked archive limits (SERVER_MAX_UNPACKED_BYTES -> 413 via snapshot.TooLargeError), per-client-IP upload rate limiting (SERVER_UPLOAD_RATE, SERVER_UPLOAD_BURST, SERVER_TRUSTED_PROXIES with IPv6 /64 grouping, right-most untrusted X-Forwarded-For resolution, Retry-After header, body-unread 429 rejection, and lazy idle client eviction), and upload-only read/write deadline extension (SERVER_UPLOAD_TIMEOUT via http.NewResponseController). Documented all new variables and per-replica limit semantics in docs/self-hosting.md. Verified with cd server && make test && make lint and go test -race -count=1 ./... (all passing, 0 lint issues).
+<!-- SECTION:FINAL_SUMMARY:END -->

@@ -137,7 +137,18 @@ func TestUploadUnpackedLimit(t *testing.T) {
 	big := F{Name: "logs/default/web/app.log", Body: strings.Repeat("x", 8192)}
 	body := snapshottest.Tarball(t, F{Name: "manifest.json", Body: snapshottest.Manifest}, big)
 	_, err := e.svc.Upload(context.Background(), bytes.NewReader(body))
-	if err == nil || !strings.Contains(err.Error(), "unpacks to more than 4096 bytes") {
+	var tooLarge *TooLargeError
+	if !errors.As(err, &tooLarge) {
+		t.Fatalf("got %v, want *TooLargeError", err)
+	}
+	if tooLarge.Limit != 4096 {
+		t.Errorf("Limit = %d, want 4096", tooLarge.Limit)
+	}
+	var inv *InvalidError
+	if errors.As(err, &inv) {
+		t.Errorf("got InvalidError, want only TooLargeError")
+	}
+	if !strings.Contains(err.Error(), "unpacks to more than 4096 bytes") {
 		t.Fatalf("got %v, want the unpacked limit error", err)
 	}
 	e.assertEmpty(t)

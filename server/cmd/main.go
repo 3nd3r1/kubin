@@ -54,14 +54,23 @@ func run() error {
 
 	srv := &http.Server{
 		Handler: api.NewRouter(api.Options{
-			Log:            log,
-			SecureHeaders:  cfg.Production(),
-			Snapshots:      &snapshot.Service{Store: db, Blobs: blobs, TempDir: tmpDir},
+			Log:           log,
+			SecureHeaders: cfg.Production(),
+			Snapshots: &snapshot.Service{
+				Store:       db,
+				Blobs:       blobs,
+				TempDir:     tmpDir,
+				MaxUnpacked: cfg.MaxUnpackedBytes,
+			},
 			Store:          db,
 			Logs:           blobs,
 			Ready:          db.Ping,
 			PublicURL:      cfg.PublicURL,
 			MaxUploadBytes: cfg.MaxUploadBytes,
+			UploadTimeout:  cfg.UploadTimeout,
+			UploadRate:     cfg.UploadRate,
+			UploadBurst:    cfg.UploadBurst,
+			TrustedProxies: cfg.TrustedProxies,
 			UI:             web.Handler(web.Dist()),
 		}),
 		ReadHeaderTimeout: 5 * time.Second,

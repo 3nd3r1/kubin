@@ -56,8 +56,9 @@ func BlobKey(id string) string { return "snapshots/" + id + ".tar.gz" }
 func LogsBlobKey(id string) string { return "snapshots/" + id + ".logs.txt" }
 
 // Upload reads a snapshot tarball from r and stores it. It returns the new
-// snapshot's ID. An *InvalidError means the upload was rejected; errors from
-// reading r are returned as they are.
+// snapshot's ID. An *InvalidError means the upload was malformed, a
+// *TooLargeError means it unpacked past MaxUnpacked; errors from reading r are
+// returned as they are.
 func (s *Service) Upload(ctx context.Context, r io.Reader) (string, error) {
 	// Spool the upload so it can be read twice: once to check and index it,
 	// once into the blob store.

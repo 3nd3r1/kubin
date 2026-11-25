@@ -42,6 +42,16 @@ func invalid(format string, args ...any) error {
 	return &InvalidError{msg: fmt.Sprintf(format, args...)}
 }
 
+// TooLargeError means the archive unpacks past the configured size limit. Its
+// message is safe to show to the client.
+type TooLargeError struct {
+	Limit int64
+}
+
+func (e *TooLargeError) Error() string {
+	return fmt.Sprintf("archive unpacks to more than %d bytes", e.Limit)
+}
+
 // Manifest is the part of manifest.json the server reads.
 type Manifest struct {
 	FormatVersion int       `json:"format_version"`
@@ -108,10 +118,13 @@ func (a *archive) next() (*tar.Header, error) {
 		return nil, invalid("%s: appears twice", hdr.Name)
 	}
 	a.seen[hdr.Name] = true
-	a.unpacked += tarBlock + hdr.Size
-	if hdr.Size < 0 || a.unpacked > a.maxUnpacked {
-		return nil, invalid("archive unpacks to more than %d bytes", a.maxUnpacked)
+	if hdr.Size < 0 {
+		return nil, invalid("%s: negative file size", hdr.Name)
 	}
+	if hdr.Size > a.maxUnpacked || tarBlock > a.maxUnpacked-hdr.Size || a.unpacked > a.maxUnpacked-tarBlock-hdr.Size {
+		return nil, &TooLargeError{Limit: a.maxUnpacked}
+	}
+	a.unpacked += tarBlock + hdr.Size
 	return hdr, nil
 }
 

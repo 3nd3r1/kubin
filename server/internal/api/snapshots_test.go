@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/3nd3r1/kubin/server/internal/blob"
 	"github.com/3nd3r1/kubin/server/internal/snapshot"
@@ -181,5 +182,132 @@ func TestReadyzChecksDatabase(t *testing.T) {
 	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/readyz", nil))
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Errorf("got %d, want 503", rec.Code)
+	}
+}
+
+func TestUploadUnpackedTooLarge(t *testing.T) {
+	dir := t.TempDir()
+	st, err := store.OpenSQLite(context.Background(), filepath.Join(dir, "kubin.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	blobs, err := blob.NewFS(filepath.Join(dir, "blobs"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(NewRouter(Options{
+		Log:            slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Snapshots:      &snapshot.Service{Store: st, Blobs: blobs, TempDir: t.TempDir(), MaxUnpacked: 4096},
+		Store:          st,
+		Logs:           blobs,
+		MaxUploadBytes: 1 << 20,
+	}))
+	t.Cleanup(srv.Close)
+
+	// Highly compressible log: small on the wire, larger than 4096 unpacked.
+	body := snapshottest.Tarball(t,
+		snapshottest.File{Name: "manifest.json", Body: snapshottest.Manifest},
+		snapshottest.File{Name: "logs/default/web/app.log", Body: strings.Repeat("x", 16384)},
+	)
+	resp, err := http.Post(srv.URL+"/api/v1/snapshots", "application/gzip", bytes.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	raw, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusRequestEntityTooLarge {
+		t.Fatalf("got %d %s, want 413", resp.StatusCode, raw)
+	}
+	var e errorResponse
+	if err := json.Unmarshal(raw, &e); err != nil || !strings.Contains(e.Error, "4096") {
+		t.Errorf("body %s doesn't name unpacked limit 4096", raw)
+	}
+}
+
+type slowReader struct {
+	data  []byte
+	pos   int
+	delay time.Duration
+	sent  bool
+}
+
+func (s *slowReader) Read(p []byte) (int, error) {
+	if s.pos >= len(s.data) {
+		return 0, io.EOF
+	}
+	if !s.sent {
+		// Send the first half immediately, then pause longer than the server's
+		// ReadTimeout/WriteTimeout before sending the rest.
+		s.sent = true
+		mid := max(1, len(s.data)/2)
+		n := copy(p, s.data[:mid])
+		s.pos += n
+		return n, nil
+	}
+	time.Sleep(s.delay)
+	n := copy(p, s.data[s.pos:])
+	s.pos += n
+	return n, nil
+}
+
+func TestUploadTimeoutExtendsDeadlinesOnlyForUploads(t *testing.T) {
+	dir := t.TempDir()
+	st, err := store.OpenSQLite(context.Background(), filepath.Join(dir, "kubin.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	blobs, err := blob.NewFS(filepath.Join(dir, "blobs"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	router := NewRouter(Options{
+		Log:            slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Snapshots:      &snapshot.Service{Store: st, Blobs: blobs, TempDir: t.TempDir()},
+		Store:          st,
+		Logs:           blobs,
+		MaxUploadBytes: 1 << 20,
+		UploadTimeout:  2 * time.Second,
+		Ready: func(ctx context.Context) error {
+			time.Sleep(250 * time.Millisecond)
+			return nil
+		},
+	})
+	srv := httptest.NewUnstartedServer(router)
+	srv.Config.ReadTimeout = 100 * time.Millisecond
+	srv.Config.WriteTimeout = 100 * time.Millisecond
+	srv.Start()
+	t.Cleanup(srv.Close)
+
+	// Upload takes 250ms (> 100ms ReadTimeout and WriteTimeout, < 2s UploadTimeout) and succeeds.
+	fixture := snapshottest.Fixture(t)
+	req, err := http.NewRequest(http.MethodPost, srv.URL+"/api/v1/snapshots", &slowReader{
+		data:  fixture,
+		delay: 250 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/gzip")
+	resp, err := srv.Client().Do(req)
+	if err != nil {
+		t.Fatalf("slow upload failed: %v", err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("slow upload got %d %s, want 201", resp.StatusCode, body)
+	}
+
+	// Another route (/readyz) keeps the server's 100ms WriteTimeout and fails when slow.
+	readyResp, err := srv.Client().Get(srv.URL + "/readyz")
+	if err == nil {
+		b, readErr := io.ReadAll(readyResp.Body)
+		_ = readyResp.Body.Close()
+		if readErr == nil && readyResp.StatusCode == http.StatusOK && string(b) == "ok" {
+			t.Fatal("slow /readyz unexpectedly succeeded past WriteTimeout")
+		}
 	}
 }

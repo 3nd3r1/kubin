@@ -5,6 +5,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"time"
 
@@ -26,17 +27,30 @@ type Options struct {
 	// request.
 	PublicURL      string
 	MaxUploadBytes int64
+	// UploadTimeout extends read and write deadlines on the upload handler.
+	// Zero leaves the server's ReadTimeout and WriteTimeout in place.
+	UploadTimeout time.Duration
+	// UploadRate is uploads per client IP per hour. Zero disables rate limiting.
+	UploadRate     int
+	UploadBurst    int
+	TrustedProxies []netip.Prefix
+	// Now overrides time.Now for the upload rate limiter. Nil means time.Now.
+	Now func() time.Time
 	// UI serves every path that isn't an API or health route. Nil means
 	// 404 for those paths.
 	UI http.Handler
 }
 
 type handlers struct {
-	opts Options
+	opts    Options
+	limiter *uploadLimiter
 }
 
 func NewRouter(opts Options) http.Handler {
-	h := &handlers{opts: opts}
+	h := &handlers{
+		opts:    opts,
+		limiter: newUploadLimiter(opts.UploadRate, opts.UploadBurst, opts.TrustedProxies, opts.Now),
+	}
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
 	r.Use(requestLog(opts.Log))

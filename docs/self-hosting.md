@@ -24,6 +24,8 @@ A docker compose file (TASK-27) and the Helm chart (TASK-7) come later. Both run
 
 Links handed to the CLI are built from the request: `X-Forwarded-Proto` (or TLS) for the scheme and the `Host` header for the host. If the proxy doesn't pass those through, set `SERVER_PUBLIC_URL` to the address people open, like `https://kubin.example.com`.
 
+Set `SERVER_TRUSTED_PROXIES` to the proxy's CIDR(s) (for example `10.0.0.0/8,172.16.0.0/12`) so upload rate limiting reads the client address from `X-Forwarded-For` instead of counting every request under the proxy's IP. Without it, `X-Forwarded-For` is ignored.
+
 ## Configuration
 
 Everything is an env var. Set them with `-e NAME=value`.
@@ -33,14 +35,19 @@ Everything is an env var. Set them with `-e NAME=value`.
 | `SERVER_PORT` | `8080` | Port to listen on |
 | `SERVER_DATA_DIR` | `/data` in the image, `data` otherwise | Holds `kubin.db`, `blobs/` and `tmp/` for uploads in progress |
 | `SERVER_PUBLIC_URL` | empty | Base for the links returned to the CLI. Empty means taken from the request |
-| `SERVER_MAX_UPLOAD_BYTES` | `67108864` (64 MiB) | Largest snapshot accepted. If you raise it, raise `kubin create --max-size` too |
+| `SERVER_MAX_UPLOAD_BYTES` | `67108864` (64 MiB) | Largest compressed snapshot accepted. If you raise it, raise `kubin create --max-size` too |
+| `SERVER_MAX_UNPACKED_BYTES` | `1073741824` (1 GiB) | Largest size a snapshot may unpack to |
+| `SERVER_UPLOAD_RATE` | `30` | Uploads allowed per client IP per hour (per `/64` for IPv6). `0` turns the limit off |
+| `SERVER_UPLOAD_BURST` | `10` | Burst of uploads allowed before the hourly rate applies |
+| `SERVER_TRUSTED_PROXIES` | empty | Comma-separated CIDRs of proxies whose `X-Forwarded-For` header is trusted for rate limiting |
+| `SERVER_UPLOAD_TIMEOUT` | `5m` | Read and write deadline for uploads (`POST /api/v1/snapshots`) |
 | `SERVER_ENV` | `production` in the image, `development` otherwise | `production` adds browser hardening headers |
-| `SERVER_READ_TIMEOUT` | `10s` | Time to read a whole request, upload included |
-| `SERVER_WRITE_TIMEOUT` | `10s` | Time to write a response |
+| `SERVER_READ_TIMEOUT` | `10s` | Time to read a request (uploads use `SERVER_UPLOAD_TIMEOUT`) |
+| `SERVER_WRITE_TIMEOUT` | `10s` | Time to write a response (uploads use `SERVER_UPLOAD_TIMEOUT`) |
 | `SERVER_IDLE_TIMEOUT` | `60s` | Keep-alive idle time |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error`. Logs are JSON on stderr |
 
-Durations use Go syntax: `30s`, `2m`.
+Durations use Go syntax: `30s`, `2m`. Upload rate limits are kept in memory per replica, so each replica tracks its own counters.
 
 ## Health
 

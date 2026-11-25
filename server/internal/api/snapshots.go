@@ -6,7 +6,9 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/3nd3r1/kubin/server/internal/snapshot"
 )
@@ -26,14 +28,34 @@ type errorResponse struct {
 }
 
 func (h *handlers) createSnapshot(w http.ResponseWriter, r *http.Request) {
+	if h.limiter != nil {
+		if ok, retryAfter := h.limiter.allow(r); !ok {
+			secs, human := formatRetryAfter(retryAfter)
+			w.Header().Set("Retry-After", strconv.Itoa(secs))
+			writeError(w, http.StatusTooManyRequests, "too many uploads from your address, try again in "+human)
+			return
+		}
+	}
+
+	if h.opts.UploadTimeout > 0 {
+		deadline := time.Now().Add(h.opts.UploadTimeout)
+		rc := http.NewResponseController(w)
+		_ = rc.SetReadDeadline(deadline)
+		_ = rc.SetWriteDeadline(deadline)
+	}
+
 	body := http.MaxBytesReader(w, r.Body, h.opts.MaxUploadBytes)
 	id, err := h.opts.Snapshots.Upload(r.Context(), body)
 
 	var tooBig *http.MaxBytesError
+	var unpackedTooBig *snapshot.TooLargeError
 	var inv *snapshot.InvalidError
 	switch {
 	case errors.As(err, &tooBig):
 		writeError(w, http.StatusRequestEntityTooLarge, "upload is larger than "+itoa(tooBig.Limit)+" bytes")
+		return
+	case errors.As(err, &unpackedTooBig):
+		writeError(w, http.StatusRequestEntityTooLarge, unpackedTooBig.Error())
 		return
 	case errors.As(err, &inv):
 		writeError(w, http.StatusBadRequest, "invalid snapshot: "+inv.Error())
