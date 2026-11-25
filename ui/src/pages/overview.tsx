@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 
 import { LoadError, Loading } from "@/components/common/states";
 
+import { ExpiredPage } from "./not-found";
 import { PodTable } from "./pods";
 
 /** Kinds with a rule in problem(), other than Pod. */
@@ -192,6 +193,14 @@ export function OverviewPage() {
                 : [],
         [eventsState, created]
     );
+
+    if (
+        podsState.status === "expired" ||
+        eventsState.status === "expired" ||
+        servicesState.status === "expired"
+    ) {
+        return <ExpiredPage />;
+    }
 
     const nodes = counts.find((c) => c.kind === "Node" && c.group === "core");
     const loading =

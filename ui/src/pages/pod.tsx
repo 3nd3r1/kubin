@@ -19,7 +19,7 @@ import {
 } from "@/components/resource/related";
 import { YamlView } from "@/components/resource/yaml";
 
-import { NotFoundPage } from "./not-found";
+import { ExpiredPage, NotFoundPage } from "./not-found";
 
 export function PodPage() {
     const snapshot = useSnapshot();
@@ -48,6 +48,8 @@ export function PodPage() {
                     detail={`There is no pod ${ns}/${name} in this snapshot.`}
                 />
             );
+        case "expired":
+            return <ExpiredPage />;
         case "error":
             return <LoadError message={state.message} />;
     }

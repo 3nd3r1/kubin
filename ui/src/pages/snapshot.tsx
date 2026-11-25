@@ -9,13 +9,13 @@ import {
 
 import { getSnapshot, listResources } from "@/lib/api";
 import { groupKinds } from "@/lib/kinds";
-import { kindPath, nsParam } from "@/lib/snapshot";
+import { formatExpiry, kindPath, nsParam } from "@/lib/snapshot";
 import { useFetch } from "@/lib/use-fetch";
 import { cn } from "@/lib/utils";
 
 import { LoadError, Loading } from "@/components/common/states";
 
-import { NotFoundPage } from "./not-found";
+import { ExpiredPage, NotFoundPage } from "./not-found";
 
 /** Loads the snapshot once for every page under /s/:id. */
 export function SnapshotLayout() {
@@ -34,12 +34,15 @@ export function SnapshotLayout() {
                     detail="The link is wrong, or the snapshot has expired."
                 />
             );
+        case "expired":
+            return <ExpiredPage />;
         case "error":
             return <LoadError message={state.message} />;
     }
 
     const snapshot = state.data;
     const { cluster, created_at } = snapshot.manifest;
+    const expiry = formatExpiry(snapshot.expires_at);
     return (
         <div className="space-y-6">
             <div>
@@ -53,6 +56,17 @@ export function SnapshotLayout() {
                     <time dateTime={created_at} title={created_at}>
                         {new Date(created_at).toLocaleString()}
                     </time>
+                    {expiry && snapshot.expires_at && (
+                        <>
+                            {" · "}
+                            <time
+                                dateTime={snapshot.expires_at}
+                                title={snapshot.expires_at}
+                            >
+                                {expiry}
+                            </time>
+                        </>
+                    )}
                 </p>
             </div>
             <div className="flex flex-col gap-6 md:flex-row">

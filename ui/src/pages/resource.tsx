@@ -14,7 +14,7 @@ import { ResourceEvents } from "@/components/resource/events";
 import { OwnerLinks, RelatedResources } from "@/components/resource/related";
 import { YamlView } from "@/components/resource/yaml";
 
-import { NotFoundPage } from "./not-found";
+import { ExpiredPage, NotFoundPage } from "./not-found";
 
 type Obj = { kind?: string; metadata?: ObjectMeta };
 
@@ -44,6 +44,8 @@ export function ResourcePage() {
                     detail={`There is no ${kind} ${namespace ? `${namespace}/` : ""}${name} in this snapshot.`}
                 />
             );
+        case "expired":
+            return <ExpiredPage />;
         case "error":
             return <LoadError message={state.message} />;
     }

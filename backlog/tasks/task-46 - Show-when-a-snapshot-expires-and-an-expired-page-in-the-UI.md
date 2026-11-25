@@ -1,9 +1,11 @@
 ---
 id: TASK-46
 title: Show when a snapshot expires and an expired page in the UI
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@agy'
 created_date: '2026-11-24T09:36:00Z'
+updated_date: '2026-11-25T12:47:00Z'
 labels:
   - ui
   - tier:2
@@ -39,12 +41,29 @@ Server and CLI changes, a delete button (the token stays with the CLI), restylin
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A 410 from any snapshot API call shows a page saying the snapshot expired, not a generic error
-- [ ] #2 The snapshot header shows when the snapshot expires, relative, with the exact time in a title, and nothing when `expires_at` is missing
-- [ ] #3 Unit tests cover the 410 mapping and the expiry text, including a missing and a past expiry
+- [x] #1 A 410 from any snapshot API call shows a page saying the snapshot expired, not a generic error
+- [x] #2 The snapshot header shows when the snapshot expires, relative, with the exact time in a title, and nothing when `expires_at` is missing
+- [x] #3 Unit tests cover the 410 mapping and the expiry text, including a missing and a past expiry
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 cd ui && make lint && make typecheck && make test passes
+- [x] #1 cd ui && make lint && make typecheck && make test passes
 <!-- DOD:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Add ExpiredError (410) and optional expires_at to ui/src/lib/api.ts.
+2. Add expired state to FetchState<T> and map ExpiredError in ui/src/lib/use-fetch.ts.
+3. Add formatExpiry helper in ui/src/lib/snapshot.ts for relative expiry text (including missing and past timestamps).
+4. Render an expired snapshot page for status === 'expired' in snapshot pages (snapshot.tsx, kind.tsx, pod.tsx, resource.tsx, overview.tsx) and display relative expiry <time> with exact title in SnapshotLayout header.
+5. Add unit tests in ui/src/lib/api.test.ts and ui/src/lib/snapshot.test.ts using vitest fake timers.
+6. Run cd ui && make lint && make typecheck && make test.
+<!-- SECTION:PLAN:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added ExpiredError (410) and optional expires_at to ui/src/lib/api.ts, an expired FetchState in ui/src/lib/use-fetch.ts, and formatExpiry in ui/src/lib/snapshot.ts. Updated snapshot pages to render ExpiredPage on 410 and display relative expiry in a <time> element with the exact timestamp in title (omitted when expires_at is absent). Added unit tests in ui/src/lib/api.test.ts and ui/src/lib/snapshot.test.ts. Verified with cd ui && make lint && make typecheck && make test (9 files, 94 tests passed).
+<!-- SECTION:FINAL_SUMMARY:END -->

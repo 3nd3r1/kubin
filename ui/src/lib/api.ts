@@ -29,11 +29,14 @@ export type Manifest = {
 export type Snapshot = {
     id: string;
     uploaded_at: string;
+    expires_at?: string;
     manifest: Manifest;
     counts: KindCount[];
 };
 
 export class NotFoundError extends Error {}
+
+export class ExpiredError extends Error {}
 
 async function get(
     path: string,
@@ -42,6 +45,7 @@ async function get(
 ): Promise<Response> {
     const resp = await fetch(path, { signal, headers: { Accept: accept } });
     if (resp.status === 404) throw new NotFoundError(path);
+    if (resp.status === 410) throw new ExpiredError(path);
     if (!resp.ok) {
         const body = await resp.json().catch(() => null);
         throw new Error(body?.error ?? `${resp.status} ${resp.statusText}`);

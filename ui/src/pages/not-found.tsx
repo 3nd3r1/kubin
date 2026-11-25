@@ -19,3 +19,12 @@ export function NotFoundPage({
         </div>
     );
 }
+
+export function ExpiredPage() {
+    return (
+        <NotFoundPage
+            title="Snapshot expired"
+            detail="This snapshot has expired and is no longer available."
+        />
+    );
+}

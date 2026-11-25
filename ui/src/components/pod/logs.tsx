@@ -276,6 +276,8 @@ function LogView({
             return <Loading what="log" />;
         case "missing":
             return <Empty>This log isn't stored on the server.</Empty>;
+        case "expired":
+            return <Empty>This snapshot has expired.</Empty>;
         case "error":
             return <LoadError message={state.message} />;
     }

@@ -34,3 +34,28 @@ export function resourcePath(
     const parts = [r.namespace || "_cluster", r.name].map(encodeURIComponent);
     return `/s/${id}/${segment}/${parts.join("/")}`;
 }
+
+const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
+
+/**
+ * Relative expiry text for the snapshot header, e.g. "expires in 3 days".
+ * Returns null when expiresAt is absent or invalid, and "expired" when in the past.
+ */
+export function formatExpiry(expiresAt?: string): string | null {
+    if (!expiresAt) return null;
+    const ms = Date.parse(expiresAt);
+    if (Number.isNaN(ms)) return null;
+    const diff = ms - Date.now();
+    if (diff <= 0) return "expired";
+    const mins = Math.round(diff / MINUTE_MS);
+    if (mins < 1) return "expires in less than a minute";
+    if (mins < 60)
+        return `expires in ${mins} ${mins === 1 ? "minute" : "minutes"}`;
+    const hours = Math.round(diff / HOUR_MS);
+    if (hours < 24)
+        return `expires in ${hours} ${hours === 1 ? "hour" : "hours"}`;
+    const days = Math.round(diff / DAY_MS);
+    return `expires in ${days} ${days === 1 ? "day" : "days"}`;
+}

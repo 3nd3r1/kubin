@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 
 import { Empty, LoadError, Loading } from "@/components/common/states";
 
-import { NotFoundPage } from "./not-found";
+import { ExpiredPage, NotFoundPage } from "./not-found";
 import { PodTable } from "./pods";
 
 /** The list page of one kind: /s/{id}/{resource}?ns= */
@@ -58,6 +58,7 @@ function KindTable({
     );
 
     if (state.status === "loading") return <Loading what={kind} />;
+    if (state.status === "expired") return <ExpiredPage />;
     if (state.status === "error") return <LoadError message={state.message} />;
     if (state.status === "missing") return <LoadError message="not found" />;
     if (items.length === 0)

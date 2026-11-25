@@ -1,11 +1,12 @@
 import { type DependencyList, useEffect, useState } from "react";
 
-import { NotFoundError } from "./api";
+import { ExpiredError, NotFoundError } from "./api";
 
 export type FetchState<T> =
     | { status: "loading" }
     | { status: "ok"; data: T }
     | { status: "missing" }
+    | { status: "expired" }
     | { status: "error"; message: string };
 
 const loading = { status: "loading" } as const;
@@ -36,13 +37,15 @@ export function useFetch<T>(
                     state:
                         err instanceof NotFoundError
                             ? { status: "missing" }
-                            : {
-                                  status: "error",
-                                  message:
-                                      err instanceof Error
-                                          ? err.message
-                                          : String(err),
-                              },
+                            : err instanceof ExpiredError
+                              ? { status: "expired" }
+                              : {
+                                    status: "error",
+                                    message:
+                                        err instanceof Error
+                                            ? err.message
+                                            : String(err),
+                                },
                 });
             });
         return () => ctrl.abort();
