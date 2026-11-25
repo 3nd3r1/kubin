@@ -1,9 +1,11 @@
 ---
 id: TASK-45
 title: Set a snapshot expiry and delete a snapshot from the CLI
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@agy'
 created_date: '2026-11-24T09:36:00Z'
+updated_date: '2026-11-25T12:39:00Z'
 labels:
   - cli
   - tier:3
@@ -47,16 +49,28 @@ Server and UI changes, listing your snapshots.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `kubin create --expire 24h` uploads with that expiry, and stderr shows when the snapshot expires and the `kubin delete` command; stdout is only the link
-- [ ] #2 The delete token is stored in a 0600 file under the user config dir and is never printed
-- [ ] #3 `kubin delete <url>` deletes the snapshot with the stored token or `--token`, and removes the stored entry
-- [ ] #4 A wrong token, a missing token and an unknown snapshot each give a clear error; the first two exit non-zero
-- [ ] #5 Tests against an httptest server cover create with --expire, delete success and each error case
-- [ ] #6 README "What works" mentions `--expire` and `kubin delete`
+- [x] #1 `kubin create --expire 24h` uploads with that expiry, and stderr shows when the snapshot expires and the `kubin delete` command; stdout is only the link
+- [x] #2 The delete token is stored in a 0600 file under the user config dir and is never printed
+- [x] #3 `kubin delete <url>` deletes the snapshot with the stored token or `--token`, and removes the stored entry
+- [x] #4 A wrong token, a missing token and an unknown snapshot each give a clear error; the first two exit non-zero
+- [x] #5 Tests against an httptest server cover create with --expire, delete success and each error case
+- [x] #6 README "What works" mentions `--expire` and `kubin delete`
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 cd cli && go test ./... && golangci-lint run ./... passes
-- [ ] #2 Manual: cd server && make run, then cd cli && go run . create --server http://localhost:8080 --expire 1h -n kube-system against a kind cluster, then go run . delete <url>; the link then answers 404
+- [x] #1 cd cli && go test ./... && golangci-lint run ./... passes
+- [x] #2 Manual: cd server && make run, then cd cli && go run . create --server http://localhost:8080 --expire 1h -n kube-system against a kind cluster, then go run . delete <url>; the link then answers 404
 <!-- DOD:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Extend cli/pkg/upload with Result.ExpiresAt and Result.DeleteToken, optional expires_in query param on Upload/File, Delete(ctx, id, token) with ErrNotFound/ErrForbidden, and httptest tests.\n2. Add cli/pkg/tokens for atomic 0600 token storage at <UserConfigDir>/kubin/snapshots.json (0700 dir) with unit tests using t.Setenv.\n3. Add --expire to cli/cmd/create.go, save delete token on upload, print expiry and delete hint to stderr while keeping stdout URL-only, and add tests.\n4. Add cli/cmd/delete.go (kubin delete <url> [--token]) registered on rootCmd, with URL splitting at last /s/, token lookup/removal, error handling, and httptest tests.\n5. Update README.md 'What works' with --expire and kubin delete.\n6. Run DoD checks: go test, golangci-lint, and manual create+delete against local server and kind cluster.
+<!-- SECTION:PLAN:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added --expire to kubin create, atomic 0600 delete-token storage under <UserConfigDir>/kubin/snapshots.json, and kubin delete <url> [--token] with README updates. Verified with go test -race, golangci-lint (0 issues), and manual create+delete against a local server and kind-kubin-demo (200 before delete, 404 after).
+<!-- SECTION:FINAL_SUMMARY:END -->

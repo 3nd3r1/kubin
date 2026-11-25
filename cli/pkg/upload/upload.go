@@ -16,9 +16,18 @@ import (
 
 // Result is what the server answers to an upload.
 type Result struct {
-	ID  string `json:"id"`
-	URL string `json:"url"`
+	ID          string    `json:"id"`
+	URL         string    `json:"url"`
+	ExpiresAt   time.Time `json:"expires_at"`
+	DeleteToken string    `json:"delete_token"`
 }
+
+var (
+	// ErrNotFound is returned when the server reports the snapshot does not exist.
+	ErrNotFound = errors.New("snapshot not found")
+	// ErrForbidden is returned when the server rejects the delete token.
+	ErrForbidden = errors.New("invalid delete token")
+)
 
 type Client struct {
 	// Server is the base URL, like https://kubin.example.com.
@@ -35,8 +44,9 @@ func New(server, userAgent string) *Client {
 	}
 }
 
-// File uploads the tarball at path.
-func (c *Client) File(ctx context.Context, path string) (Result, error) {
+// File uploads the tarball at path. When expire is non-empty, it is sent
+// as the expires_in query parameter.
+func (c *Client) File(ctx context.Context, path, expire string) (Result, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return Result{}, err
@@ -46,14 +56,18 @@ func (c *Client) File(ctx context.Context, path string) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	return c.Upload(ctx, f, st.Size())
+	return c.Upload(ctx, f, st.Size(), expire)
 }
 
-// Upload sends size bytes from r as a snapshot.
-func (c *Client) Upload(ctx context.Context, r io.Reader, size int64) (Result, error) {
+// Upload sends size bytes from r as a snapshot. When expire is non-empty,
+// it is sent as the expires_in query parameter.
+func (c *Client) Upload(ctx context.Context, r io.Reader, size int64, expire string) (Result, error) {
 	endpoint, err := c.endpoint()
 	if err != nil {
 		return Result{}, err
+	}
+	if expire != "" {
+		endpoint += "?" + url.Values{"expires_in": {expire}}.Encode()
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, r)
 	if err != nil {
@@ -88,6 +102,48 @@ func (c *Client) Upload(ctx context.Context, r io.Reader, size int64) (Result, e
 		return Result{}, fmt.Errorf("the kubin server at %s sent an unexpected answer (%s); is it a kubin server?", c.Server, resp.Status)
 	}
 	return res, nil
+}
+
+// Delete removes snapshot id using the bearer delete token.
+func (c *Client) Delete(ctx context.Context, id, token string) error {
+	endpoint, err := c.endpoint()
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, endpoint+"/"+url.PathEscape(id), nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", "application/json")
+	if c.UserAgent != "" {
+		req.Header.Set("User-Agent", c.UserAgent)
+	}
+
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		var uerr *url.Error
+		if errors.As(err, &uerr) {
+			err = uerr.Err
+		}
+		return fmt.Errorf("can't reach the kubin server at %s: %w", c.Server, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return fmt.Errorf("read the server response: %w", err)
+	}
+
+	switch resp.StatusCode {
+	case http.StatusNoContent, http.StatusOK:
+		return nil
+	case http.StatusNotFound:
+		return fmt.Errorf("%w: %s", ErrNotFound, serverMessage(resp, body))
+	case http.StatusForbidden:
+		return fmt.Errorf("%w: %s", ErrForbidden, serverMessage(resp, body))
+	default:
+		return fmt.Errorf("the kubin server at %s refused to delete the snapshot: %s", c.Server, serverMessage(resp, body))
+	}
 }
 
 func (c *Client) endpoint() (string, error) {

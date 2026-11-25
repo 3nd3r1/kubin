@@ -7,12 +7,14 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/3nd3r1/kubin/cli/pkg/collector"
 	"github.com/3nd3r1/kubin/cli/pkg/kube"
 	"github.com/3nd3r1/kubin/cli/pkg/log"
 	"github.com/3nd3r1/kubin/cli/pkg/redact"
 	"github.com/3nd3r1/kubin/cli/pkg/snapshot"
+	"github.com/3nd3r1/kubin/cli/pkg/tokens"
 	"github.com/3nd3r1/kubin/cli/pkg/upload"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -42,6 +44,9 @@ type createOptions struct {
 	// MaxSize is the largest snapshot uploaded, like "64Mi". Empty means
 	// no limit. --output files are not limited.
 	MaxSize string
+	// Expire is the snapshot lifetime sent to the server, like "24h".
+	// Empty lets the server apply its default. Ignored with --output.
+	Expire string
 }
 
 // defaultMaxSize matches the server's default SERVER_MAX_UPLOAD_BYTES.
@@ -57,6 +62,7 @@ kubin server and print the link. Only the link goes to stdout.
 
 Use --output to keep the snapshot as a file instead of uploading it.`,
 	Example: `  kubin create --server https://kubin.example.com
+  kubin create --server https://kubin.example.com --expire 24h
   KUBIN_SERVER=http://localhost:8080 kubin create
   kubin create --namespace shop --namespace payments
   kubin create --exclude-namespace kube-system --no-logs
@@ -71,6 +77,11 @@ Use --output to keep the snapshot as a file instead of uploading it.`,
 		}
 		if _, err := parseSize(createOpts.MaxSize); err != nil {
 			return err
+		}
+		if createOpts.Output == "" {
+			if err := parseExpire(createOpts.Expire); err != nil {
+				return err
+			}
 		}
 		client, err := kube.NewKubeClient(createOpts.Context)
 		if err != nil {
@@ -99,6 +110,20 @@ func init() {
 		"leave container logs out of the snapshot")
 	createCmd.Flags().StringVar(&createOpts.MaxSize, "max-size", defaultMaxSize,
 		`don't upload a snapshot bigger than this, like 64Mi or 200M; "0" means no limit`)
+	createCmd.Flags().StringVar(&createOpts.Expire, "expire", "",
+		"snapshot lifetime, like 24h or 30m (default is set by the server)")
+}
+
+// parseExpire checks a --expire duration. Empty means use the server default.
+func parseExpire(s string) error {
+	if s == "" {
+		return nil
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil || d <= 0 {
+		return fmt.Errorf("--expire %q: want a positive duration like 24h or 30m", s)
+	}
+	return nil
 }
 
 // parseSize reads a --max-size value. 0 means no limit.
@@ -138,6 +163,10 @@ func runCreate(ctx context.Context, opts createOptions, client kube.Client, stdo
 		return nil
 	}
 
+	if err := parseExpire(opts.Expire); err != nil {
+		return err
+	}
+
 	f, err := os.CreateTemp(opts.TempDir, "kubin-snapshot-*.tar.gz")
 	if err != nil {
 		return err
@@ -167,9 +196,20 @@ func runCreate(ctx context.Context, opts createOptions, client kube.Client, stdo
 	}
 
 	log.Info(fmt.Sprintf("Uploading %d resources from %s to %s...", total(manifest), manifest.Cluster.Name, opts.Server))
-	res, err := upload.New(opts.Server, "kubin/"+version).File(ctx, f.Name())
+	res, err := upload.New(opts.Server, "kubin/"+version).File(ctx, f.Name(), opts.Expire)
 	if err != nil {
 		return err
+	}
+	if res.DeleteToken != "" {
+		if err := tokens.Set(res.URL, res.DeleteToken); err != nil {
+			log.Warn("Could not save delete token", "error", err)
+		}
+	}
+	if !res.ExpiresAt.IsZero() {
+		log.Info(fmt.Sprintf("Expires %s. Delete it with: kubin delete %s",
+			res.ExpiresAt.UTC().Format("2006-01-02 15:04 UTC"), res.URL))
+	} else if res.DeleteToken != "" {
+		log.Info(fmt.Sprintf("Delete it with: kubin delete %s", res.URL))
 	}
 	_, err = fmt.Fprintln(stdout, res.URL)
 	return err

@@ -14,6 +14,8 @@ import (
 
 	"github.com/3nd3r1/kubin/cli/pkg/kube"
 	"github.com/3nd3r1/kubin/cli/pkg/kube/kubetest"
+	"github.com/3nd3r1/kubin/cli/pkg/log"
+	"github.com/3nd3r1/kubin/cli/pkg/tokens"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -38,11 +40,21 @@ func firstEntry(t *testing.T, data []byte) string {
 }
 
 func TestCreateUploadsAndPrintsOnlyTheURL(t *testing.T) {
+	cfgDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfgDir)
+	t.Setenv("HOME", cfgDir)
+
+	var stderr bytes.Buffer
+	log.SetOutput(&stderr)
+	t.Cleanup(func() { log.SetOutput(os.Stderr) })
+
 	var uploaded []byte
+	var rawQuery string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rawQuery = r.URL.RawQuery
 		uploaded, _ = io.ReadAll(r.Body)
 		w.WriteHeader(http.StatusCreated)
-		_, _ = w.Write([]byte(`{"id":"abc","url":"http://kubin.test/s/abc"}`))
+		_, _ = w.Write([]byte(`{"id":"abc","url":"http://kubin.test/s/abc","expires_at":"2026-12-01T10:00:00Z","delete_token":"super-secret-token"}`))
 	}))
 	defer srv.Close()
 
@@ -51,10 +63,86 @@ func TestCreateUploadsAndPrintsOnlyTheURL(t *testing.T) {
 	err := runCreate(context.Background(), createOptions{Server: srv.URL, TempDir: tmp}, fakeClient(), &stdout)
 	require.NoError(t, err)
 
+	assert.Empty(t, rawQuery, "no expires_in query param when --expire is unset")
 	assert.Equal(t, "http://kubin.test/s/abc\n", stdout.String())
+	assert.Contains(t, stderr.String(), "Expires 2026-12-01 10:00 UTC. Delete it with: kubin delete http://kubin.test/s/abc")
+	assert.NotContains(t, stdout.String(), "super-secret-token")
+	assert.NotContains(t, stderr.String(), "super-secret-token")
+
+	tok, ok, err := tokens.Get("http://kubin.test/s/abc")
+	require.NoError(t, err)
+	assert.True(t, ok)
+	assert.Equal(t, "super-secret-token", tok)
+
 	assert.Equal(t, "manifest.json", firstEntry(t, uploaded))
 	left, _ := os.ReadDir(tmp)
 	assert.Empty(t, left, "temporary snapshot is removed after upload")
+}
+
+func TestCreateWithExpireSendsQueryParam(t *testing.T) {
+	cfgDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfgDir)
+	t.Setenv("HOME", cfgDir)
+
+	var gotExpire string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotExpire = r.URL.Query().Get("expires_in")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"id":"abc","url":"http://kubin.test/s/abc","expires_at":"2026-12-01T10:00:00Z","delete_token":"tok-exp"}`))
+	}))
+	defer srv.Close()
+
+	tmp := t.TempDir()
+	var stdout bytes.Buffer
+	err := runCreate(context.Background(), createOptions{Server: srv.URL, TempDir: tmp, Expire: "24h"}, fakeClient(), &stdout)
+	require.NoError(t, err)
+	assert.Equal(t, "24h", gotExpire)
+	assert.Equal(t, "http://kubin.test/s/abc\n", stdout.String())
+}
+
+func TestCreateExpireRejectedByServerShowsServerMessage(t *testing.T) {
+	cfgDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfgDir)
+	t.Setenv("HOME", cfgDir)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"error":"expires_in 1000h0m0s exceeds maximum 720h0m0s"}`))
+	}))
+	defer srv.Close()
+
+	tmp := t.TempDir()
+	var stdout bytes.Buffer
+	err := runCreate(context.Background(), createOptions{Server: srv.URL, TempDir: tmp, Expire: "1000h"}, fakeClient(), &stdout)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "expires_in 1000h0m0s exceeds maximum 720h0m0s")
+	assert.Empty(t, stdout.String())
+}
+
+func TestCreateOutputWritesNoToken(t *testing.T) {
+	cfgDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfgDir)
+	t.Setenv("HOME", cfgDir)
+
+	dir := t.TempDir()
+	out := filepath.Join(dir, "cluster.tar.gz")
+	var stdout bytes.Buffer
+	err := runCreate(context.Background(), createOptions{Output: out, Expire: "24h"}, fakeClient(), &stdout)
+	require.NoError(t, err)
+
+	path, err := tokens.Path()
+	require.NoError(t, err)
+	_, err = os.Stat(path)
+	assert.True(t, os.IsNotExist(err), "--output must not create a token file")
+}
+
+func TestParseExpire(t *testing.T) {
+	for _, in := range []string{"", "30m", "24h", "1h30m"} {
+		assert.NoError(t, parseExpire(in), in)
+	}
+	for _, in := range []string{"0s", "-1h", "tomorrow"} {
+		assert.Error(t, parseExpire(in), in)
+	}
 }
 
 func TestCreateRemovesTempFileWhenUploadFails(t *testing.T) {
