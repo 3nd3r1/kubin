@@ -52,16 +52,31 @@ func run() error {
 		return err
 	}
 
+	snapshots := &snapshot.Service{
+		Store:       db,
+		Blobs:       blobs,
+		TempDir:     tmpDir,
+		MaxUnpacked: cfg.MaxUnpackedBytes,
+		DefaultTTL:  cfg.SnapshotTTL,
+		MaxTTL:      cfg.SnapshotMaxTTL,
+	}
+
+	cleanupCtx, stopCleanup := context.WithCancel(ctx)
+	cleanupDone := make(chan struct{})
+	go func() {
+		defer close(cleanupDone)
+		snapshots.RunCleanup(cleanupCtx, cfg.CleanupInterval, log)
+	}()
+	defer func() {
+		stopCleanup()
+		<-cleanupDone
+	}()
+
 	srv := &http.Server{
 		Handler: api.NewRouter(api.Options{
-			Log:           log,
-			SecureHeaders: cfg.Production(),
-			Snapshots: &snapshot.Service{
-				Store:       db,
-				Blobs:       blobs,
-				TempDir:     tmpDir,
-				MaxUnpacked: cfg.MaxUnpackedBytes,
-			},
+			Log:            log,
+			SecureHeaders:  cfg.Production(),
+			Snapshots:      snapshots,
 			Store:          db,
 			Logs:           blobs,
 			Ready:          db.Ping,
@@ -71,6 +86,8 @@ func run() error {
 			UploadRate:     cfg.UploadRate,
 			UploadBurst:    cfg.UploadBurst,
 			TrustedProxies: cfg.TrustedProxies,
+			SnapshotTTL:    cfg.SnapshotTTL,
+			SnapshotMaxTTL: cfg.SnapshotMaxTTL,
 			UI:             web.Handler(web.Dist()),
 		}),
 		ReadHeaderTimeout: 5 * time.Second,

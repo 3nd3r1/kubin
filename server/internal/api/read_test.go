@@ -1,14 +1,22 @@
 package api
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
+	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/3nd3r1/kubin/server/internal/blob"
+	"github.com/3nd3r1/kubin/server/internal/snapshot"
 	"github.com/3nd3r1/kubin/server/internal/snapshot/snapshottest"
+	"github.com/3nd3r1/kubin/server/internal/store"
 )
 
 // withFixture uploads snapshottest.Fixture and returns the server and the ID.
@@ -52,6 +60,9 @@ func TestGetSnapshot(t *testing.T) {
 	}
 	if got.ID != id || time.Since(got.UploadedAt) > time.Minute {
 		t.Errorf("id %q uploaded_at %v", got.ID, got.UploadedAt)
+	}
+	if got.ExpiresAt == nil || got.ExpiresAt.IsZero() {
+		t.Errorf("expected expires_at in GET /api/v1/snapshots/{id}, got %s", body)
 	}
 	var m struct {
 		Cluster struct{ Context string } `json:"cluster"`
@@ -137,6 +148,125 @@ func TestReadNotFound(t *testing.T) {
 		status, body := s.get(t, tt.path)
 		if status != http.StatusNotFound || !strings.Contains(string(body), tt.msg) {
 			t.Errorf("GET %s: got %d %s, want 404 %q", tt.path, status, body, tt.msg)
+		}
+	}
+}
+
+func TestExpiredSnapshotReadRoutesReturn410Then404(t *testing.T) {
+	now := time.Date(2026, 11, 25, 12, 0, 0, 0, time.UTC)
+	dir := t.TempDir()
+	st, err := store.OpenSQLite(context.Background(), filepath.Join(dir, "kubin.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	blobs, err := blob.NewFS(filepath.Join(dir, "blobs"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := &snapshot.Service{
+		Store:   st,
+		Blobs:   blobs,
+		TempDir: t.TempDir(),
+		Now:     func() time.Time { return now },
+	}
+	r := NewRouter(Options{
+		Log:            slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Snapshots:      svc,
+		Store:          st,
+		Logs:           blobs,
+		MaxUploadBytes: 1 << 20,
+		Now:            func() time.Time { return now },
+	})
+
+	// Upload a snapshot expiring in 1h.
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/v1/snapshots?expires_in=1h", bytes.NewReader(snapshottest.Fixture(t))))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("upload: %d %s", rec.Code, rec.Body.String())
+	}
+	var up uploadResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &up); err != nil {
+		t.Fatal(err)
+	}
+
+	// Insert a legacy snapshot with NULL expires_at.
+	tx, err := st.BeginSnapshot(context.Background(), store.Snapshot{
+		ID: "legacy000000000000000000", UploadedAt: now, CapturedAt: now, FormatVersion: 1,
+		Manifest: []byte(snapshottest.Manifest), BlobKey: snapshot.BlobKey("legacy000000000000000000"), SizeBytes: 10,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	// GET on legacy snapshot omits expires_at.
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/snapshots/legacy000000000000000000", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("legacy GET: %d %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), `"expires_at"`) {
+		t.Errorf("legacy snapshot unexpectedly included expires_at: %s", rec.Body.String())
+	}
+
+	// GET on new snapshot carries the exact expires_at from upload.
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/snapshots/"+up.ID, nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET before expiry: %d %s", rec.Code, rec.Body.String())
+	}
+	var meta snapshotResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &meta); err != nil {
+		t.Fatal(err)
+	}
+	if meta.ExpiresAt == nil || !meta.ExpiresAt.Equal(up.ExpiresAt) {
+		t.Errorf("GET expires_at = %v, want %v", meta.ExpiresAt, up.ExpiresAt)
+	}
+
+	paths := []string{
+		"/api/v1/snapshots/" + up.ID,
+		"/api/v1/snapshots/" + up.ID + "/resources",
+		"/api/v1/snapshots/" + up.ID + "/resources/Pod/default/web-0",
+		"/api/v1/snapshots/" + up.ID + "/logs/default/web-0/nginx",
+	}
+
+	// Advance clock to exact expiry boundary: every read route returns 410 JSON error.
+	now = now.Add(time.Hour)
+	for _, p := range paths {
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, p, nil))
+		if rec.Code != http.StatusGone {
+			t.Errorf("GET %s after expiry: got %d %s, want 410", p, rec.Code, rec.Body.String())
+		}
+		if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
+			t.Errorf("GET %s after expiry: Content-Type = %q, want application/json", p, ct)
+		}
+		var e errorResponse
+		if err := json.Unmarshal(rec.Body.Bytes(), &e); err != nil || e.Error != "snapshot expired" {
+			t.Errorf("GET %s after expiry: body = %s, want snapshot expired", p, rec.Body.String())
+		}
+	}
+
+	// Legacy snapshot still answers 200 after advancing time.
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/snapshots/legacy000000000000000000", nil))
+	if rec.Code != http.StatusOK {
+		t.Errorf("legacy GET after time advance: got %d, want 200", rec.Code)
+	}
+
+	// After cleanup removes the expired snapshot, every read route returns 404.
+	deleted, err := svc.DeleteExpired(context.Background())
+	if err != nil || deleted != 1 {
+		t.Fatalf("DeleteExpired = (%d, %v), want (1, nil)", deleted, err)
+	}
+	for _, p := range paths {
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, p, nil))
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("GET %s after cleanup: got %d %s, want 404", p, rec.Code, rec.Body.String())
 		}
 	}
 }

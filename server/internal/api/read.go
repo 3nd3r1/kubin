@@ -35,6 +35,7 @@ type kindCount struct {
 type snapshotResponse struct {
 	ID         string          `json:"id"`
 	UploadedAt time.Time       `json:"uploaded_at"`
+	ExpiresAt  *time.Time      `json:"expires_at,omitempty"`
 	Manifest   json.RawMessage `json:"manifest"`
 	// Counts is what was indexed. The manifest's own counts are what the
 	// CLI reported and may differ.
@@ -54,7 +55,7 @@ type resourceList struct {
 	Items []resourceItem `json:"items"`
 }
 
-// snapshot loads the snapshot named in the URL, writing a 404 or 500 and
+// snapshot loads the snapshot named in the URL, writing a 404, 410 or 500 and
 // returning false if it can't.
 func (h *handlers) snapshot(w http.ResponseWriter, r *http.Request) (store.Snapshot, bool) {
 	snap, err := h.opts.Store.GetSnapshot(r.Context(), chi.URLParam(r, "id"))
@@ -64,6 +65,10 @@ func (h *handlers) snapshot(w http.ResponseWriter, r *http.Request) (store.Snaps
 	}
 	if err != nil {
 		h.serverError(w, "get snapshot", err)
+		return store.Snapshot{}, false
+	}
+	if snap.ExpiresAt != nil && !h.now().Before(*snap.ExpiresAt) {
+		writeError(w, http.StatusGone, "snapshot expired")
 		return store.Snapshot{}, false
 	}
 	return snap, true
@@ -79,9 +84,15 @@ func (h *handlers) getSnapshot(w http.ResponseWriter, r *http.Request) {
 		h.serverError(w, "count resources", err)
 		return
 	}
+	var expiresAt *time.Time
+	if snap.ExpiresAt != nil {
+		t := snap.ExpiresAt.UTC()
+		expiresAt = &t
+	}
 	resp := snapshotResponse{
 		ID:         snap.ID,
 		UploadedAt: snap.UploadedAt.UTC(),
+		ExpiresAt:  expiresAt,
 		Manifest:   snap.Manifest,
 		Counts:     make([]kindCount, len(counts)),
 	}

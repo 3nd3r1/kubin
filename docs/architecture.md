@@ -22,7 +22,7 @@ The earlier design had seven services plus Kafka, ClickHouse and Redis. Why it c
 3. The CLI uploads it. The server validates it, stores the raw tarball in the blob store and writes one row per resource to the database.
 4. The server answers with a random, unguessable ID. The CLI prints the link.
 5. The browser loads the UI from the same server. The UI calls the API for resource lists, single objects and logs. Logs are streamed from the blob store: at upload the server copies every log out of the tarball into one blob per snapshot and records where each starts, so serving a log is one ranged read.
-6. Snapshots expire and a job inside the server deletes them.
+6. Each upload gets an expiry (`SERVER_SNAPSHOT_TTL` by default, or `?expires_in=` up to `SERVER_SNAPSHOT_MAX_TTL`) and a random `delete_token` (only its SHA-256 hash is stored). Once `expires_at` passes, every read route returns `410` until a periodic job inside the server removes both blobs and the database row, after which reads return `404`. Owners can also delete early with `DELETE /api/v1/snapshots/{id}` and their bearer token. Snapshots stored before expiry existed have a `NULL` `expires_at` and never expire.
 
 ## Snapshot
 
@@ -56,14 +56,17 @@ One Go binary with chi. The parts the old design made into services are packages
 ### API
 
 ```
-POST /api/v1/snapshots                                 upload tarball, returns {id, url}
-GET  /api/v1/snapshots/{id}                            manifest and counts
-GET  /api/v1/snapshots/{id}/resources?kind=&namespace= list
-GET  /api/v1/snapshots/{id}/resources/{kind}/{ns}/{name}
-GET  /api/v1/snapshots/{id}/logs/{ns}/{pod}/{container}?previous=true&q=   text/plain, q filters lines
-GET  /healthz, /readyz
-GET  /*                                                the UI
+POST   /api/v1/snapshots?expires_in=                   upload tarball, returns {id, url, expires_at, delete_token}
+DELETE /api/v1/snapshots/{id}                          delete with Authorization: Bearer <delete_token> (204)
+GET    /api/v1/snapshots/{id}                          manifest, counts and expires_at
+GET    /api/v1/snapshots/{id}/resources?kind=&namespace= list
+GET    /api/v1/snapshots/{id}/resources/{kind}/{ns}/{name}
+GET    /api/v1/snapshots/{id}/logs/{ns}/{pod}/{container}?previous=true&q=   text/plain, q filters lines
+GET    /healthz, /readyz
+GET    /*                                              the UI
 ```
+
+Read routes return `410` once a snapshot's `expires_at` has passed, and `404` after the cleanup job or a `DELETE` removes it.
 
 ## UI (`ui/`)
 

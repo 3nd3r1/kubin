@@ -13,16 +13,30 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/3nd3r1/kubin/server/internal/snapshot"
 )
 
 type stubUploader struct {
-	calls int
+	calls       int
+	lastTTL     time.Duration
+	deleteCalls int
 }
 
-func (u *stubUploader) Upload(_ context.Context, r io.Reader) (string, error) {
+func (u *stubUploader) Upload(_ context.Context, r io.Reader, ttl time.Duration) (snapshot.UploadResult, error) {
 	u.calls++
+	u.lastTTL = ttl
 	_, _ = io.Copy(io.Discard, r)
-	return "testid123456789012345678", nil
+	return snapshot.UploadResult{
+		ID:          "testid123456789012345678",
+		ExpiresAt:   time.Date(2026, 12, 2, 12, 0, 0, 0, time.UTC),
+		DeleteToken: "stub-delete-token",
+	}, nil
+}
+
+func (u *stubUploader) Delete(_ context.Context, _, _ string) error {
+	u.deleteCalls++
+	return nil
 }
 
 type failOnReadBody struct {

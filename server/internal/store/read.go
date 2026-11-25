@@ -6,16 +6,18 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 )
 
 func (s *SQL) GetSnapshot(ctx context.Context, id string) (Snapshot, error) {
 	var snap Snapshot
 	var manifest string
+	var expiresAt sql.NullTime
 	err := s.db.QueryRowContext(ctx, `
-		SELECT id, uploaded_at, captured_at, format_version, manifest, blob_key, size_bytes, logs_blob_key
+		SELECT id, uploaded_at, captured_at, format_version, manifest, blob_key, size_bytes, logs_blob_key, expires_at, delete_token_hash
 		FROM snapshots WHERE id = $1`, id).
 		Scan(&snap.ID, &snap.UploadedAt, &snap.CapturedAt, &snap.FormatVersion, &manifest, &snap.BlobKey,
-			&snap.SizeBytes, &snap.LogsBlobKey)
+			&snap.SizeBytes, &snap.LogsBlobKey, &expiresAt, &snap.DeleteTokenHash)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Snapshot{}, fmt.Errorf("snapshot %s: %w", id, ErrNotFound)
 	}
@@ -23,7 +25,33 @@ func (s *SQL) GetSnapshot(ctx context.Context, id string) (Snapshot, error) {
 		return Snapshot{}, err
 	}
 	snap.Manifest = []byte(manifest)
+	if expiresAt.Valid {
+		t := expiresAt.Time.UTC()
+		snap.ExpiresAt = &t
+	}
 	return snap, nil
+}
+
+func (s *SQL) ListExpired(ctx context.Context, before time.Time, limit int) ([]ExpiredSnapshot, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, blob_key, logs_blob_key
+		FROM snapshots
+		WHERE expires_at IS NOT NULL AND expires_at <= $1
+		ORDER BY expires_at ASC
+		LIMIT $2`, before.UTC().Round(0), limit)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	out := []ExpiredSnapshot{}
+	for rows.Next() {
+		var e ExpiredSnapshot
+		if err := rows.Scan(&e.ID, &e.BlobKey, &e.LogsBlobKey); err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
 }
 
 func (s *SQL) CountResources(ctx context.Context, id string) ([]KindCount, error) {

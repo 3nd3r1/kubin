@@ -98,16 +98,25 @@ func (s *SQL) Close() error {
 	return err
 }
 
+func (s *SQL) DeleteSnapshot(ctx context.Context, id string) error {
+	_, err := s.wdb.ExecContext(ctx, `DELETE FROM snapshots WHERE id = $1`, id)
+	return err
+}
+
 func (s *SQL) BeginSnapshot(ctx context.Context, snap Snapshot) (SnapshotTx, error) {
 	tx, err := s.wdb.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
+	var expiresAt sql.NullTime
+	if snap.ExpiresAt != nil {
+		expiresAt = sql.NullTime{Time: snap.ExpiresAt.UTC().Round(0), Valid: true}
+	}
 	_, err = tx.ExecContext(ctx, `
-		INSERT INTO snapshots (id, uploaded_at, captured_at, format_version, manifest, blob_key, size_bytes, logs_blob_key)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		snap.ID, snap.UploadedAt.UTC(), snap.CapturedAt.UTC(), snap.FormatVersion,
-		string(snap.Manifest), snap.BlobKey, snap.SizeBytes, snap.LogsBlobKey)
+		INSERT INTO snapshots (id, uploaded_at, captured_at, format_version, manifest, blob_key, size_bytes, logs_blob_key, expires_at, delete_token_hash)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		snap.ID, snap.UploadedAt.UTC().Round(0), snap.CapturedAt.UTC().Round(0), snap.FormatVersion,
+		string(snap.Manifest), snap.BlobKey, snap.SizeBytes, snap.LogsBlobKey, expiresAt, snap.DeleteTokenHash)
 	if err != nil {
 		_ = tx.Rollback()
 		return nil, fmt.Errorf("insert snapshot: %w", err)

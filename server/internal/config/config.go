@@ -51,15 +51,30 @@ type Config struct {
 	MaxUnpackedBytes int64         `envconfig:"SERVER_MAX_UNPACKED_BYTES" default:"1073741824"`
 	UploadTimeout    time.Duration `envconfig:"SERVER_UPLOAD_TIMEOUT" default:"5m"`
 	// UploadRate is uploads per client IP per hour. Zero disables the limit.
-	UploadRate     int   `envconfig:"SERVER_UPLOAD_RATE" default:"30"`
-	UploadBurst    int   `envconfig:"SERVER_UPLOAD_BURST" default:"10"`
-	TrustedProxies CIDRs `envconfig:"SERVER_TRUSTED_PROXIES"`
+	UploadRate      int           `envconfig:"SERVER_UPLOAD_RATE" default:"30"`
+	UploadBurst     int           `envconfig:"SERVER_UPLOAD_BURST" default:"10"`
+	TrustedProxies  CIDRs         `envconfig:"SERVER_TRUSTED_PROXIES"`
+	SnapshotTTL     time.Duration `envconfig:"SERVER_SNAPSHOT_TTL" default:"168h"`
+	SnapshotMaxTTL  time.Duration `envconfig:"SERVER_SNAPSHOT_MAX_TTL" default:"720h"`
+	CleanupInterval time.Duration `envconfig:"SERVER_CLEANUP_INTERVAL" default:"10m"`
 }
 
 func Load() (Config, error) {
 	var cfg Config
 	if err := envconfig.Process("", &cfg); err != nil {
 		return Config{}, fmt.Errorf("read config: %w", err)
+	}
+	if cfg.SnapshotTTL <= 0 {
+		return Config{}, fmt.Errorf("SERVER_SNAPSHOT_TTL must be positive, got %s", cfg.SnapshotTTL)
+	}
+	if cfg.SnapshotMaxTTL <= 0 {
+		return Config{}, fmt.Errorf("SERVER_SNAPSHOT_MAX_TTL must be positive, got %s", cfg.SnapshotMaxTTL)
+	}
+	if cfg.SnapshotTTL > cfg.SnapshotMaxTTL {
+		return Config{}, fmt.Errorf("SERVER_SNAPSHOT_TTL (%s) must not exceed SERVER_SNAPSHOT_MAX_TTL (%s)", cfg.SnapshotTTL, cfg.SnapshotMaxTTL)
+	}
+	if cfg.CleanupInterval <= 0 {
+		return Config{}, fmt.Errorf("SERVER_CLEANUP_INTERVAL must be positive, got %s", cfg.CleanupInterval)
 	}
 	return cfg, nil
 }

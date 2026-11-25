@@ -30,6 +30,12 @@ type Store interface {
 	GetResource(ctx context.Context, id string, k Key) (Resource, error)
 	// GetLog says where one container log sits in the snapshot's logs blob.
 	GetLog(ctx context.Context, id string, k LogKey) (Log, error)
+	// ListExpired returns up to limit snapshots whose expires_at is at or
+	// before before, oldest first. Snapshots with a nil ExpiresAt are skipped.
+	ListExpired(ctx context.Context, before time.Time, limit int) ([]ExpiredSnapshot, error)
+	// DeleteSnapshot removes a snapshot and its cascaded resources and logs.
+	// Deleting a snapshot that doesn't exist is not an error.
+	DeleteSnapshot(ctx context.Context, id string) error
 
 	Ping(ctx context.Context) error
 	Close() error
@@ -54,6 +60,19 @@ type Snapshot struct {
 	SizeBytes     int64 // compressed tarball size
 	// LogsBlobKey holds every log of the snapshot back to back. Empty for
 	// snapshots stored before logs were served.
+	LogsBlobKey string
+	// ExpiresAt is when the snapshot stops being served and becomes eligible
+	// for cleanup. Nil means it never expires (snapshots stored before expiry).
+	ExpiresAt *time.Time
+	// DeleteTokenHash is the hex SHA-256 of the snapshot's delete token. Empty
+	// for snapshots stored before delete tokens existed.
+	DeleteTokenHash string
+}
+
+// ExpiredSnapshot identifies a snapshot ready to be removed along with its blobs.
+type ExpiredSnapshot struct {
+	ID          string
+	BlobKey     string
 	LogsBlobKey string
 }
 

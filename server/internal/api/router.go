@@ -34,7 +34,14 @@ type Options struct {
 	UploadRate     int
 	UploadBurst    int
 	TrustedProxies []netip.Prefix
-	// Now overrides time.Now for the upload rate limiter. Nil means time.Now.
+	// SnapshotTTL is the default lifetime for uploads without ?expires_in=.
+	// Zero means snapshot.DefaultTTL.
+	SnapshotTTL time.Duration
+	// SnapshotMaxTTL is the maximum lifetime accepted via ?expires_in=.
+	// Zero means snapshot.DefaultMaxTTL.
+	SnapshotMaxTTL time.Duration
+	// Now overrides time.Now for expiry checks and the upload rate limiter.
+	// Nil means time.Now.
 	Now func() time.Time
 	// UI serves every path that isn't an API or health route. Nil means
 	// 404 for those paths.
@@ -44,6 +51,13 @@ type Options struct {
 type handlers struct {
 	opts    Options
 	limiter *uploadLimiter
+}
+
+func (h *handlers) now() time.Time {
+	if h.opts.Now != nil {
+		return h.opts.Now()
+	}
+	return time.Now()
 }
 
 func NewRouter(opts Options) http.Handler {
@@ -65,6 +79,7 @@ func NewRouter(opts Options) http.Handler {
 		r.NotFound(apiNotFound)
 		r.MethodNotAllowed(apiMethodNotAllowed)
 		r.Post("/snapshots", h.createSnapshot)
+		r.Delete("/snapshots/{id}", h.deleteSnapshot)
 		r.Get("/snapshots/{id}", h.getSnapshot)
 		r.Get("/snapshots/{id}/resources", h.listResources)
 		r.Get("/snapshots/{id}/resources/{kind}/{ns}/{name}", h.getResource)

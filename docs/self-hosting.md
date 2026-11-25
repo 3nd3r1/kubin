@@ -41,13 +41,16 @@ Everything is an env var. Set them with `-e NAME=value`.
 | `SERVER_UPLOAD_BURST` | `10` | Burst of uploads allowed before the hourly rate applies |
 | `SERVER_TRUSTED_PROXIES` | empty | Comma-separated CIDRs of proxies whose `X-Forwarded-For` header is trusted for rate limiting |
 | `SERVER_UPLOAD_TIMEOUT` | `5m` | Read and write deadline for uploads (`POST /api/v1/snapshots`) |
+| `SERVER_SNAPSHOT_TTL` | `168h` (7 days) | Default lifetime for uploaded snapshots when `?expires_in=` is omitted |
+| `SERVER_SNAPSHOT_MAX_TTL` | `720h` (30 days) | Longest lifetime accepted via `?expires_in=` |
+| `SERVER_CLEANUP_INTERVAL` | `10m` | How often the server deletes expired snapshots and their blobs |
 | `SERVER_ENV` | `production` in the image, `development` otherwise | `production` adds browser hardening headers |
 | `SERVER_READ_TIMEOUT` | `10s` | Time to read a request (uploads use `SERVER_UPLOAD_TIMEOUT`) |
 | `SERVER_WRITE_TIMEOUT` | `10s` | Time to write a response (uploads use `SERVER_UPLOAD_TIMEOUT`) |
 | `SERVER_IDLE_TIMEOUT` | `60s` | Keep-alive idle time |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error`. Logs are JSON on stderr |
 
-Durations use Go syntax: `30s`, `2m`. Upload rate limits are kept in memory per replica, so each replica tracks its own counters.
+Durations use Go syntax: `30s`, `2m`, `168h`. Upload rate limits are kept in memory per replica, so each replica tracks its own counters. Snapshots stored before expiry was added have a `NULL` `expires_at` in SQLite and never expire.
 
 ## Health
 

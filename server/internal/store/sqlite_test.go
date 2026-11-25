@@ -322,3 +322,164 @@ func TestReadsWorkDuringOpenUpload(t *testing.T) {
 		t.Fatalf("read %d resources, want 5", n)
 	}
 }
+
+func TestExpiryAndDeleteTokenRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	s, _ := openTest(t)
+
+	exp := time.Date(2026, 12, 1, 15, 30, 0, 123456000, time.FixedZone("UTC+2", 2*3600))
+	withExp := testSnapshot("with-exp")
+	withExp.ExpiresAt = &exp
+	withExp.DeleteTokenHash = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	tx, err := s.BeginSnapshot(ctx, withExp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	noExp := testSnapshot("no-exp")
+	tx, err = s.BeginSnapshot(ctx, noExp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := s.GetSnapshot(ctx, "with-exp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ExpiresAt == nil || !got.ExpiresAt.Equal(exp) || got.ExpiresAt.Location() != time.UTC {
+		t.Errorf("ExpiresAt = %v, want %v UTC", got.ExpiresAt, exp.UTC())
+	}
+	if got.DeleteTokenHash != withExp.DeleteTokenHash {
+		t.Errorf("DeleteTokenHash = %q, want %q", got.DeleteTokenHash, withExp.DeleteTokenHash)
+	}
+
+	gotNoExp, err := s.GetSnapshot(ctx, "no-exp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotNoExp.ExpiresAt != nil {
+		t.Errorf("no-exp ExpiresAt = %v, want nil", gotNoExp.ExpiresAt)
+	}
+	if gotNoExp.DeleteTokenHash != "" {
+		t.Errorf("no-exp DeleteTokenHash = %q, want empty", gotNoExp.DeleteTokenHash)
+	}
+}
+
+func TestListExpired(t *testing.T) {
+	ctx := context.Background()
+	s, _ := openTest(t)
+
+	base := time.Date(2026, 12, 1, 12, 0, 0, 0, time.UTC)
+	insert := func(id string, exp *time.Time, logsKey string) {
+		snap := testSnapshot(id)
+		snap.ExpiresAt = exp
+		snap.LogsBlobKey = logsKey
+		tx, err := s.BeginSnapshot(ctx, snap)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := tx.Commit(); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	tOld := base.Add(-2 * time.Hour)
+	tExact := base
+	tSubsec := base.Add(500 * time.Millisecond)
+	tFuture := base.Add(time.Hour)
+	// Non-UTC timezone representing 1 hour before base.
+	tTZ := base.Add(-time.Hour).In(time.FixedZone("UTC+5", 5*3600))
+
+	insert("no-expiry", nil, "")
+	insert("future", &tFuture, "snapshots/future.logs.txt")
+	insert("subsec", &tSubsec, "snapshots/subsec.logs.txt")
+	insert("exact", &tExact, "snapshots/exact.logs.txt")
+	insert("tz", &tTZ, "snapshots/tz.logs.txt")
+	insert("old", &tOld, "")
+
+	// Exact boundary includes old, tz, exact in ascending expires_at order, and skips NULL/subsec/future.
+	// Use a time with a non-UTC zone to confirm before is normalized.
+	got, err := s.ListExpired(ctx, base.In(time.FixedZone("UTC-4", -4*3600)), 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []ExpiredSnapshot{
+		{ID: "old", BlobKey: "snapshots/old", LogsBlobKey: ""},
+		{ID: "tz", BlobKey: "snapshots/tz", LogsBlobKey: "snapshots/tz.logs.txt"},
+		{ID: "exact", BlobKey: "snapshots/exact", LogsBlobKey: "snapshots/exact.logs.txt"},
+	}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("ListExpired = %+v, want %+v", got, want)
+	}
+
+	// Limit caps the batch size while keeping oldest-first order.
+	limited, err := s.ListExpired(ctx, base, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(limited) != 2 || limited[0].ID != "old" || limited[1].ID != "tz" {
+		t.Fatalf("ListExpired(limit=2) = %+v, want old then tz", limited)
+	}
+
+	// Subsecond comparison and monotonic clock stripping.
+	monoNow := time.Now()
+	monoExp := monoNow
+	insert("mono", &monoExp, "")
+	monoGot, err := s.ListExpired(ctx, monoNow.Round(0), 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundMono := false
+	for _, e := range monoGot {
+		if e.ID == "mono" {
+			foundMono = true
+		}
+	}
+	if !foundMono {
+		t.Errorf("ListExpired missed snapshot whose ExpiresAt had a monotonic clock reading: %+v", monoGot)
+	}
+}
+
+func TestDeleteSnapshotCascadesAndIsIdempotent(t *testing.T) {
+	ctx := context.Background()
+	s, _ := openTest(t)
+
+	snap := testSnapshot("gone")
+	snap.LogsBlobKey = "snapshots/gone.logs.txt"
+	tx, err := s.BeginSnapshot(ctx, snap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.AddResource(ctx, Resource{Group: "core", Version: "v1", Kind: "Pod", Namespace: "default", Name: "web", Object: []byte(`{}`)}); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.AddLog(ctx, Log{LogKey: LogKey{Namespace: "default", Pod: "web", Container: "app"}, Offset: 0, Size: 5}); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.DeleteSnapshot(ctx, "gone"); err != nil {
+		t.Fatalf("DeleteSnapshot: %v", err)
+	}
+	if _, err := s.GetSnapshot(ctx, "gone"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("GetSnapshot after delete = %v, want ErrNotFound", err)
+	}
+	if n := count(t, s, `SELECT COUNT(*) FROM resources WHERE snapshot_id = $1`, "gone"); n != 0 {
+		t.Errorf("resources after delete = %d, want 0", n)
+	}
+	if n := count(t, s, `SELECT COUNT(*) FROM logs WHERE snapshot_id = $1`, "gone"); n != 0 {
+		t.Errorf("logs after delete = %d, want 0", n)
+	}
+	// Second delete is a no-op.
+	if err := s.DeleteSnapshot(ctx, "gone"); err != nil {
+		t.Errorf("second DeleteSnapshot = %v, want nil", err)
+	}
+}
