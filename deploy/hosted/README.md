@@ -6,7 +6,7 @@ The public Kubin instance runs as a single container on Coolify with SQLite and 
 
 - **Host:** Coolify server behind its built-in Traefik proxy with Let's Encrypt TLS.
 - **Domain:** `https://kubin.ender.fi`
-- **Image:** `ghcr.io/3nd3r1/kubin:<release-tag>` (pinned release tags, never `latest`).
+- **Image:** `ghcr.io/3nd3r1/kubin:sha-<commit>` (pinned commit tags built on push to `main`, never `latest`).
 - **Storage:** One Docker named volume mounted at `/data` (holds `kubin.db`, `blobs/`, and `tmp/`). A named volume inherits uid `1001:1001` from the image; if you ever switch to a bind mount, run `chown 1001:1001` on the host directory first.
 
 ## Coolify resource settings
@@ -58,14 +58,16 @@ No secrets are stored in git. All deploy credentials live in **GitHub repository
 
 ## Deploying and rolling back
 
-### Automatic (CI)
+### Automatic (CD on `main`)
 
-Pushing a `v*` tag triggers `.github/workflows/release.yml` to build and push `ghcr.io/3nd3r1/kubin:<tag>`. Once `Release` succeeds, `.github/workflows/deploy.yml` updates the Coolify application's image tag to `<tag>`, triggers a deploy, and polls `https://kubin.ender.fi/readyz` until it returns `ok`.
+Pushing to `main` with changes under `server/`, `ui/`, or `Dockerfile` triggers `.github/workflows/deploy.yml`. It builds and pushes `ghcr.io/3nd3r1/kubin:sha-<short-sha>`, updates the Coolify application's image tag, triggers a deploy, and polls `https://kubin.ender.fi/readyz` until it returns `ok`.
+
+Cutting a `v*` tag runs `.github/workflows/release.yml` to publish CLI binaries and the multi-arch self-hosted image (`ghcr.io/3nd3r1/kubin:<tag>` and `latest`).
 
 ### Manual / Rollback
 
-- **Via GitHub Actions:** Run the **Deploy** workflow manually (`workflow_dispatch`) and pass the target release tag (e.g. `v0.1.0`) to deploy or roll back.
-- **Via Coolify UI:** Open the Kubin application, change the Docker image tag to the desired `v*` release tag, and click **Redeploy**. The `/data` named volume is preserved across redeploys.
+- **Via GitHub Actions:** Run the **Deploy** workflow manually (`workflow_dispatch`). Leave `tag` empty to build and deploy current `main`, or pass an existing tag (e.g. `sha-cddaaad` or `v0.1.0`) to roll back without rebuilding.
+- **Via Coolify UI:** Open the Kubin application, change the Docker image tag to a previous `sha-*` or `v*` tag, and click **Redeploy**. The `/data` named volume is preserved across redeploys.
 
 ## One-time setup checklist (human steps)
 

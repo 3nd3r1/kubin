@@ -1,50 +1,68 @@
 name: Deploy
 
 on:
-  workflow_run:
-    workflows: ["Release"]
-    types: [completed]
+  push:
+    branches: ["main"]
+    paths:
+      - "server/**"
+      - "ui/**"
+      - "Dockerfile"
+      - ".github/workflows/deploy.yml"
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to deploy or roll back to (e.g. v0.1.0)"
-        required: true
+        description: "Existing image tag to deploy or roll back to (leave empty to build current main)"
+        required: false
         type: string
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
   deploy:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.event == 'push' &&
-       startsWith(github.event.workflow_run.head_branch, 'v'))
     runs-on: ubuntu-latest
     concurrency:
       group: deploy-hosted
       cancel-in-progress: false
     steps:
-      - name: Resolve release tag
+      - name: Resolve image tag
         id: tag
         env:
           INPUT_TAG: ${{ inputs.tag }}
-          RUN_TAG: ${{ github.event.workflow_run.head_branch }}
+          SHA: ${{ github.sha }}
         run: |
           if [ -n "$INPUT_TAG" ]; then
-            TAG="$INPUT_TAG"
+            echo "tag=$INPUT_TAG" >> "$GITHUB_OUTPUT"
+            echo "build=false" >> "$GITHUB_OUTPUT"
           else
-            TAG="$RUN_TAG"
+            SHORT_SHA="${SHA:0:7}"
+            echo "tag=sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+            echo "build=true" >> "$GITHUB_OUTPUT"
           fi
-          case "$TAG" in
-            v[0-9]*) ;;
-            *)
-              echo "Invalid release tag: $TAG (expected v*)" >&2
-              exit 1
-              ;;
-          esac
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        if: steps.tag.outputs.build == 'true'
+
+      - uses: docker/setup-buildx-action@v3
+        if: steps.tag.outputs.build == 'true'
+
+      - uses: docker/login-action@v3
+        if: steps.tag.outputs.build == 'true'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        if: steps.tag.outputs.build == 'true'
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/3nd3r1/kubin:${{ steps.tag.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Update image tag and deploy on Coolify
         env:
