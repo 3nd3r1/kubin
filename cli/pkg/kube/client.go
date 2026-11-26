@@ -38,6 +38,7 @@ type Client interface {
 type ClusterInfo struct {
 	Context       string
 	Name          string
+	Server        string
 	ServerVersion string
 }
 
@@ -46,6 +47,7 @@ type KubeClient struct {
 	dynamic   dynamic.Interface
 	context   string
 	cluster   string
+	server    string
 }
 
 var _ Client = (*KubeClient)(nil)
@@ -85,7 +87,7 @@ func NewKubeClient(context string) (*KubeClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewFromClients(clientset, dyn, context, cluster), nil
+	return NewFromClients(clientset, dyn, context, cluster).WithServer(config.Host), nil
 }
 
 // NewFromClients wraps existing clients, like client-go's fakes.
@@ -93,12 +95,18 @@ func NewFromClients(clientset kubernetes.Interface, dyn dynamic.Interface, conte
 	return &KubeClient{clientset: clientset, dynamic: dyn, context: context, cluster: cluster}
 }
 
+// WithServer records the Kubernetes API server address reported by ClusterInfo.
+func (k *KubeClient) WithServer(server string) *KubeClient {
+	k.server = server
+	return k
+}
+
 func (k *KubeClient) ClusterInfo(ctx context.Context) (ClusterInfo, error) {
 	v, err := k.clientset.Discovery().ServerVersion()
 	if err != nil {
 		return ClusterInfo{}, fmt.Errorf("get server version: %w", err)
 	}
-	return ClusterInfo{Context: k.context, Name: k.cluster, ServerVersion: v.GitVersion}, nil
+	return ClusterInfo{Context: k.context, Name: k.cluster, Server: k.server, ServerVersion: v.GitVersion}, nil
 }
 
 func (k *KubeClient) PreferredResources() ([]*metav1.APIResourceList, error) {

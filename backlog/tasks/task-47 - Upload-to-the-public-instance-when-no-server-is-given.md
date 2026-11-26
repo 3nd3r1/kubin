@@ -1,10 +1,11 @@
 ---
 id: TASK-47
 title: Upload to the public instance when no server is given
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@agy'
 created_date: '2026-11-24T09:36:00Z'
-updated_date: '2026-11-24T10:50:00Z'
+updated_date: '2026-11-26T09:35:00Z'
 labels:
   - cli
   - tier:3
@@ -51,16 +52,22 @@ Server changes, redaction (decision-5 stands), the expiry flag and `kubin delete
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 With no `--server` and no `KUBIN_SERVER`, `kubin create` uploads to `https://kubin.ender.fi` after a yes
-- [ ] #2 The first time, after collecting and before uploading, stderr shows the summary line and the `[y/N]` question; anything but y or yes, including EOF, uploads nothing and exits non-zero
-- [ ] #3 A yes is stored under the user config dir and later runs upload without asking, still printing the summary line
-- [ ] #4 Without a terminal and without a stored yes, it refuses with a message naming `--yes`, `--server` and `KUBIN_SERVER`; `--yes` uploads without asking or storing anything
-- [ ] #5 `--server`, `KUBIN_SERVER` and `--output` behave as before with no prompt, and stdout is only the link in every case
-- [ ] #6 README and `kubin create --help` describe the default, the question, `--yes` and where the answer is stored
+- [x] #1 With no `--server` and no `KUBIN_SERVER`, `kubin create` uploads to `https://kubin.ender.fi` after a yes
+- [x] #2 The first time, after collecting and before uploading, stderr shows the summary line and the `[y/N]` question; anything but y or yes, including EOF, uploads nothing and exits non-zero
+- [x] #3 A yes is stored under the user config dir and later runs upload without asking, still printing the summary line
+- [x] #4 Without a terminal and without a stored yes, it refuses with a message naming `--yes`, `--server` and `KUBIN_SERVER`; `--yes` uploads without asking or storing anything
+- [x] #5 `--server`, `KUBIN_SERVER` and `--output` behave as before with no prompt, and stdout is only the link in every case
+- [x] #6 README and `kubin create --help` describe the default, the question, `--yes` and where the answer is stored
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 cd cli && go test ./... && golangci-lint run ./... passes
-- [ ] #2 No test reaches the real public instance: go test with networking blocked (for example unshare -rn go test ./cmd/) still passes
+- [x] #1 cd cli && go test ./... && golangci-lint run ./... passes
+- [x] #2 No test reaches the real public instance: go test with networking blocked (for example unshare -rn go test ./cmd/) still passes
 <!-- DOD:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Defaulted kubin create to https://kubin.ender.fi when neither --server nor KUBIN_SERVER is set. Added cli/pkg/userconfig for storing confirmation in <user config dir>/kubin/config.json (0700 dir, 0600 atomic file), added API server host to kube.ClusterInfo, added summary line and first-run [y/N] confirmation on stderr with --yes for non-interactive use, and updated create --help and README.md. Verified with go test, golangci-lint, and unshare -rn network-isolated tests.
+<!-- SECTION:FINAL_SUMMARY:END -->

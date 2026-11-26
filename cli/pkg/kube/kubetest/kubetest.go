@@ -19,6 +19,7 @@ import (
 const (
 	Context       = "kind-kubin"
 	Cluster       = "kind-kubin"
+	Server        = "https://127.0.0.1:6443"
 	ServerVersion = "v1.33.1"
 )
 
@@ -104,7 +105,7 @@ func New(objs ...runtime.Object) *Fake {
 
 	dyn := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme.Scheme, listKinds, objs...)
 	return &Fake{
-		KubeClient: kube.NewFromClients(cs, dyn, Context, Cluster),
+		KubeClient: kube.NewFromClients(cs, dyn, Context, Cluster).WithServer(Server),
 		Clientset:  cs,
 		Dynamic:    dyn,
 	}
