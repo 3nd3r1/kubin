@@ -1,0 +1,29 @@
+services:
+  kubin:
+    image: ${KUBIN_IMAGE:-ghcr.io/3nd3r1/kubin:latest}
+    ports:
+      - "8080:8080"
+    volumes:
+      - kubin-data:/data
+    restart: unless-stopped
+    # environment:
+    #   SERVER_PORT: "8080"
+    #   SERVER_DATA_DIR: /data
+    #   SERVER_PUBLIC_URL: https://kubin.example.com
+    #   SERVER_MAX_UPLOAD_BYTES: "67108864"
+    #   SERVER_MAX_UNPACKED_BYTES: "1073741824"
+    #   SERVER_UPLOAD_RATE: "30"
+    #   SERVER_UPLOAD_BURST: "10"
+    #   SERVER_TRUSTED_PROXIES: 10.0.0.0/8,172.16.0.0/12
+    #   SERVER_UPLOAD_TIMEOUT: 5m
+    #   SERVER_SNAPSHOT_TTL: 168h
+    #   SERVER_SNAPSHOT_MAX_TTL: 720h
+    #   SERVER_CLEANUP_INTERVAL: 10m
+    #   SERVER_ENV: production
+    #   SERVER_READ_TIMEOUT: 10s
+    #   SERVER_WRITE_TIMEOUT: 10s
+    #   SERVER_IDLE_TIMEOUT: 60s
+    #   LOG_LEVEL: info
+
+volumes:
+  kubin-data:

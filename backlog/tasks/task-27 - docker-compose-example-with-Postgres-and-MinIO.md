@@ -1,10 +1,11 @@
 ---
 id: TASK-27
 title: docker compose example
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@agy'
 created_date: '2026-11-17T10:11:00Z'
-updated_date: '2026-11-24T10:31:00Z'
+updated_date: '2026-11-26T09:30:00Z'
 labels:
   - deploy
   - tier:1
@@ -37,13 +38,19 @@ docs/self-hosting.md says a compose file comes later. Some people run everything
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 In deploy/compose, `docker compose up -d` runs kubin and `curl -fsS localhost:8080/readyz` prints ok
-- [ ] #2 Snapshots persist in the named volume across `docker compose down` and `docker compose up -d`
-- [ ] #3 docs/self-hosting.md covers the compose setup and docs/architecture.md no longer marks it as TASK-27
+- [x] #1 In deploy/compose, `docker compose up -d` runs kubin and `curl -fsS localhost:8080/readyz` prints ok
+- [x] #2 Snapshots persist in the named volume across `docker compose down` and `docker compose up -d`
+- [x] #3 docs/self-hosting.md covers the compose setup and docs/architecture.md no longer marks it as TASK-27
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 docker compose -f deploy/compose/docker-compose.yml config -q passes
-- [ ] #2 Manual: make image, then in deploy/compose KUBIN_IMAGE=kubin:dev docker compose up -d, curl -fsS localhost:8080/readyz, upload with cd cli && go run . create --server http://localhost:8080 -n kube-system against a kind cluster, then docker compose down && docker compose up -d and the link still loads
+- [x] #1 docker compose -f deploy/compose/docker-compose.yml config -q passes
+- [x] #2 Manual: make image, then in deploy/compose KUBIN_IMAGE=kubin:dev docker compose up -d, curl -fsS localhost:8080/readyz, upload with cd cli && go run . create --server http://localhost:8080 -n kube-system against a kind cluster, then docker compose down && docker compose up -d and the link still loads
 <!-- DOD:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added deploy/compose/docker-compose.yml running kubin with SQLite and a named volume at /data, plus commented env var examples. Documented docker compose in docs/self-hosting.md and updated docs/architecture.md. Verified with docker compose config -q, make image, readyz, upload from kind-kubin-demo, and persistence across docker compose down/up.
+<!-- SECTION:FINAL_SUMMARY:END -->

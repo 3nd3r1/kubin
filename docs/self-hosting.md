@@ -18,7 +18,19 @@ mkdir -p ./kubin-data && sudo chown 1001:1001 ./kubin-data
 docker run -d -p 8080:8080 -v "$PWD/kubin-data:/data" ghcr.io/3nd3r1/kubin
 ```
 
-A docker compose file (TASK-27) and the Helm chart (TASK-7) come later. Both run one replica on SQLite and a volume, like `docker run`. One container handles far more than a team or a public instance needs ([capacity.md](capacity.md)), so Postgres and S3 wait until something there runs out (decision-12).
+## docker compose
+
+[deploy/compose/docker-compose.yml](../deploy/compose/docker-compose.yml) runs the same single-container setup with a named volume at `/data` and `restart: unless-stopped`:
+
+```bash
+cd deploy/compose
+docker compose up -d
+curl -fsS http://localhost:8080/readyz
+```
+
+Snapshots stay in the `kubin-data` volume across `docker compose down` and `docker compose up -d`. Remove the volume too with `docker compose down -v`. Uncomment any variables in `environment:` (such as `SERVER_PUBLIC_URL` when running behind a proxy) to override the defaults.
+
+The Helm chart (TASK-7) comes later. It also runs one replica on SQLite and a volume, like `docker run`. One container handles far more than a team or a public instance needs ([capacity.md](capacity.md)), so Postgres and S3 wait until something there runs out (decision-12).
 
 ## Behind a proxy
 
