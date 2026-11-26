@@ -1,7 +1,9 @@
 {
   pkgs ? import <nixpkgs> { },
 }:
-
+let
+  coolifyVersion = "1.11.0"; # github.com/coollabsio/coolify-cli, not in nixpkgs
+in
 pkgs.mkShell {
   buildInputs = with pkgs; [
     # Go: CLI and server
@@ -23,8 +25,13 @@ pkgs.mkShell {
     goreleaser
   ];
 
-  # The pinned backlog CLI (tools/bin/backlog).
+  # The pinned backlog CLI (tools/bin/backlog) and Go CLIs built once per version into .bin/ (git-ignored).
   shellHook = ''
-    export PATH="$PWD/tools/bin:$PWD/demo/bin:$PATH"
+    coolifyBin="$PWD/.bin/coolify-${coolifyVersion}"
+    export PATH="$PWD/tools/bin:$PWD/demo/bin:$coolifyBin:$PATH"
+    if [ ! -x "$coolifyBin/coolify" ]; then
+      echo "Installing coolify-cli ${coolifyVersion}..."
+      GOBIN="$coolifyBin" GOFLAGS=-modcacherw go install github.com/coollabsio/coolify-cli/coolify@v${coolifyVersion}
+    fi
   '';
 }

@@ -1,4 +1,5 @@
 .direnv/
+.bin/
 /cli/dist/
 /server/dist/
 kubin-snapshot-*.tar.gz
