@@ -1,5 +1,9 @@
 <p align="center">
-  <img src="docs/assets/logo_nobg.png" alt="Kubin" width="420">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/logo.svg">
+    <img src="docs/assets/logo.svg" alt="Kubin" width="380">
+  </picture>
 </p>
 
 <p align="center">Capture a broken Kubernetes cluster with one command and put the link in a ticket, instead of pasting a log dump.</p>

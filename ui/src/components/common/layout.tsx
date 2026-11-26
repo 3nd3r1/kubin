@@ -2,6 +2,7 @@ import { Link, Outlet, useMatch } from "react-router";
 
 import { cn } from "@/lib/utils";
 
+import { Logo } from "./logo";
 import { ThemeToggle } from "./theme-toggle";
 
 export function Layout() {
@@ -15,7 +16,7 @@ export function Layout() {
                         to="/"
                         className="flex items-center gap-2 font-semibold"
                     >
-                        <img src="/icon.png" alt="" className="size-7" />
+                        <Logo className="size-8" />
                         kubin
                     </Link>
                     <ThemeToggle />
