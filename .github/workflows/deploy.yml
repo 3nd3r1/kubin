@@ -1,0 +1,86 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to deploy or roll back to (e.g. v0.1.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       startsWith(github.event.workflow_run.head_branch, 'v'))
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-hosted
+      cancel-in-progress: false
+    steps:
+      - name: Resolve release tag
+        id: tag
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          RUN_TAG: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          if [ -n "$INPUT_TAG" ]; then
+            TAG="$INPUT_TAG"
+          else
+            TAG="$RUN_TAG"
+          fi
+          case "$TAG" in
+            v[0-9]*) ;;
+            *)
+              echo "Invalid release tag: $TAG (expected v*)" >&2
+              exit 1
+              ;;
+          esac
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Update image tag and deploy on Coolify
+        env:
+          COOLIFY_URL: ${{ secrets.COOLIFY_URL }}
+          COOLIFY_APP_UUID: ${{ secrets.COOLIFY_APP_UUID }}
+          COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+          IMAGE_TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          for var in COOLIFY_URL COOLIFY_APP_UUID COOLIFY_API_TOKEN; do
+            if [ -z "${!var:-}" ]; then
+              echo "Missing required GitHub secret: $var" >&2
+              exit 1
+            fi
+          done
+          BASE="${COOLIFY_URL%/}"
+
+          curl -fsS -X PATCH \
+            -H "Authorization: Bearer ${COOLIFY_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"docker_registry_image_tag\":\"${IMAGE_TAG}\"}" \
+            "${BASE}/api/v1/applications/${COOLIFY_APP_UUID}" >/dev/null
+
+          curl -fsS -X POST \
+            -H "Authorization: Bearer ${COOLIFY_API_TOKEN}" \
+            "${BASE}/api/v1/deploy?uuid=${COOLIFY_APP_UUID}&force=true" >/dev/null
+
+      - name: Verify readiness
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 30); do
+            if [ "$(curl -fsS https://kubin.ender.fi/readyz 2>/dev/null || true)" = "ok" ]; then
+              echo "kubin.ender.fi is ready"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Timed out waiting for https://kubin.ender.fi/readyz" >&2
+          exit 1

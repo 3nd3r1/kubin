@@ -1,10 +1,11 @@
 ---
 id: TASK-23
 title: Deploy a hosted instance
-status: To Do
-assignee: []
+status: Blocked
+assignee:
+  - '@agy'
 created_date: '2026-11-17T10:05:00Z'
-updated_date: '2026-11-24T10:34:00Z'
+updated_date: '2026-11-26T09:35:00Z'
 labels:
   - deploy
   - tier:4
@@ -55,13 +56,26 @@ doc-1's goal is a link anyone can open, and m-3 ends with "a public instance run
 - [ ] #2 `kubin create --server https://kubin.ender.fi` against a kind cluster prints a link that opens
 - [ ] #3 Snapshots survive a redeploy (the volume is kept)
 - [ ] #4 Deploys run from CI on release tags with no secrets in the repo
-- [ ] #5 The site shows a privacy note and an abuse contact
-- [ ] #6 deploy/hosted/README.md says what runs where, which secrets exist and where they live, and how to deploy and roll back by hand
+- [x] #5 The site shows a privacy note and an abuse contact
+- [x] #6 deploy/hosted/README.md says what runs where, which secrets exist and where they live, and how to deploy and roll back by hand
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 nix-shell -p actionlint --run actionlint passes
-- [ ] #2 git grep -nE "(password|secret|token)[\"']?\s*[:=]\s*[\"']?[A-Za-z0-9/+]{12,}" deploy .github prints nothing
-- [ ] #3 make check passes
+- [x] #1 nix-shell -p actionlint --run actionlint passes
+- [x] #2 git grep -nE "(password|secret|token)[\"']?\s*[:=]\s*[\"']?[A-Za-z0-9/+]{12,}" deploy .github prints nothing
+- [x] #3 make check passes
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Automated parts complete: added .github/workflows/deploy.yml (triggers on Release workflow_run and workflow_dispatch, pins exact release tag via Coolify API, checks /readyz), deploy/hosted/README.md, and privacy/abuse notice in UI footer and HomePage (abuse@ender.fi). Verified with actionlint, secret grep, and make check. Blocked waiting on human setup steps:
+1. DNS: add A/AAAA record for kubin.ender.fi pointing to the Coolify server.
+2. Coolify resource: create Docker Image app for ghcr.io/3nd3r1/kubin (pinned v* tag), port 8080, domain https://kubin.ender.fi, named volume kubin-data at /data, and env vars from deploy/hosted/README.md.
+3. Traefik timeout: verify https entrypoint readTimeout >= 300s (or 0s) for 64 MiB uploads.
+4. Coolify API token: create token with update/deploy permissions and note the app UUID.
+5. GitHub secrets: set COOLIFY_URL, COOLIFY_APP_UUID, COOLIFY_API_TOKEN in repo Actions secrets.
+6. Abuse email: route abuse@ender.fi (or update the address in ui/src/components/common/layout.tsx and ui/src/pages/home.tsx).
+7. Verify curl -fsS https://kubin.ender.fi/readyz, kubin create --server https://kubin.ender.fi, and persistence across a redeploy.
+<!-- SECTION:NOTES:END -->

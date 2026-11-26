@@ -29,6 +29,27 @@ export function Layout() {
             >
                 <Outlet />
             </main>
+            <footer className="text-muted-foreground border-t text-xs">
+                <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-3">
+                    <span>
+                        Run by 3nd3r1. Anyone with a link can view a snapshot
+                        until it expires; delete early with{" "}
+                        <code className="font-mono">
+                            kubin delete &lt;url&gt;
+                        </code>
+                        .
+                    </span>
+                    <span>
+                        Abuse reports:{" "}
+                        <a
+                            href="mailto:abuse@ender.fi"
+                            className="hover:text-foreground underline"
+                        >
+                            abuse@ender.fi
+                        </a>
+                    </span>
+                </div>
+            </footer>
         </div>
     );
 }
