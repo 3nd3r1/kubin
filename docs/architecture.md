@@ -82,7 +82,7 @@ The same image covers three setups:
 |---|---|---|
 | `docker run -v kubin-data:/data` | a team, a homelab, one VM | kubin with SQLite and files in the volume |
 | docker compose | the same, written down as a file | kubin with SQLite and files in the volume |
-| Helm chart (TASK-7) | Kubernetes shops | one replica, SQLite and files on a PVC, ingress |
+| Helm chart | Kubernetes shops | one replica, SQLite and files on a PVC, ingress |
 
 The public instance runs as one container on Coolify (decision-12). SQLite and a local directory limit an install to one replica, which is enough ([capacity.md](capacity.md)). Postgres and S3 come back when one node runs out, and then more replicas need both. Install steps and configuration are in [self-hosting.md](self-hosting.md).
 

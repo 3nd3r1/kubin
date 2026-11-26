@@ -30,7 +30,39 @@ curl -fsS http://localhost:8080/readyz
 
 Snapshots stay in the `kubin-data` volume across `docker compose down` and `docker compose up -d`. Remove the volume too with `docker compose down -v`. Uncomment any variables in `environment:` (such as `SERVER_PUBLIC_URL` when running behind a proxy) to override the defaults.
 
-The Helm chart (TASK-7) comes later. It also runs one replica on SQLite and a volume, like `docker run`. One container handles far more than a team or a public instance needs ([capacity.md](capacity.md)), so Postgres and S3 wait until something there runs out (decision-12).
+## Helm chart
+
+`charts/kubin` deploys one replica with SQLite and local blobs on a `ReadWriteOnce` PersistentVolumeClaim, using a `Recreate` strategy and uid `1001` (`fsGroup: 1001`) so the volume is writable:
+
+```bash
+helm install kubin ./charts/kubin -n kubin --create-namespace
+```
+
+To expose kubin through an Ingress with TLS, set your ingress class, annotations, host, and TLS secret in a values file:
+
+```yaml
+env:
+  SERVER_PUBLIC_URL: https://kubin.example.com
+  SERVER_TRUSTED_PROXIES: 10.0.0.0/8,172.16.0.0/12
+
+ingress:
+  enabled: true
+  className: traefik
+  annotations: {}
+  hosts:
+    - host: kubin.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: kubin-tls
+      hosts:
+        - kubin.example.com
+```
+
+Make sure your ingress controller allows request bodies at least as large as `SERVER_MAX_UPLOAD_BYTES` (64 MiB by default; many controllers default to 1 MiB) and allows uploads to finish within `SERVER_UPLOAD_TIMEOUT` (5 minutes by default). Pass secret environment variables through an existing Kubernetes Secret with `existingSecret: my-secret` instead of plain values.
+
+`replicaCount` is capped at `1` because SQLite on a `ReadWriteOnce` PVC only supports one replica. One container handles far more than a team or a public instance needs ([capacity.md](capacity.md)), so Postgres and S3 wait until something there runs out (decision-12).
 
 ## Behind a proxy
 

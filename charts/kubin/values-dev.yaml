@@ -1,22 +1,12 @@
-# Development overrides for Kubin
+# Development overrides for running kubin on kind via skaffold.
+image:
+  pullPolicy: IfNotPresent
 
-global:
-  environment: development
-  imageTag: "dev"
-  domain: kubin.local
+persistence:
+  size: 1Gi
 
-argocd:
+env:
+  LOG_LEVEL: debug
+
+ingress:
   enabled: false
-
-# API Gateway - Development settings
-api-gateway:
-  replicaCount: 1
-
-  env:
-    LOG_LEVEL: "debug"
-
-  ingress:
-    enabled: false # Use port-forward in development
-
-  service:
-    type: ClusterIP

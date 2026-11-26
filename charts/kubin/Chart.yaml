@@ -1,6 +1,6 @@
 apiVersion: v2
 name: kubin
-description: Kubin - Pastebin for Kubernetes clusters
+description: Pastebin for Kubernetes clusters
 type: application
 version: 0.1.0
 appVersion: "0.1.0"
@@ -8,8 +8,7 @@ appVersion: "0.1.0"
 keywords:
   - kubernetes
   - pastebin
-  - microservices
-  - gitops
+  - snapshots
 
 home: https://github.com/3nd3r1/kubin
 sources:
@@ -18,9 +17,3 @@ sources:
 maintainers:
   - name: 3nd3r1
     email: ender.spam.guru@gmail.com
-
-dependencies:
-  - name: api-gateway
-    version: "0.1.0"
-    repository: "file://charts/api-gateway"
-    condition: api-gateway.enabled

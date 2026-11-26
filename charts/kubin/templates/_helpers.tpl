@@ -1,14 +1,8 @@
-{{/*
-Expand the name of the chart.
-*/}}
-{{- define "api-gateway.name" -}}
+{{- define "kubin.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
-{{/*
-Create a default fully qualified app name.
-*/}}
-{{- define "api-gateway.fullname" -}}
+{{- define "kubin.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -21,37 +15,20 @@ Create a default fully qualified app name.
 {{- end }}
 {{- end }}
 
-{{/*
-Create chart name and version as used by the chart label.
-*/}}
-{{- define "api-gateway.chart" -}}
+{{- define "kubin.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
-{{/*
-Common labels
-*/}}
-{{- define "api-gateway.labels" -}}
-helm.sh/chart: {{ include "api-gateway.chart" . }}
-{{ include "api-gateway.selectorLabels" . }}
+{{- define "kubin.labels" -}}
+helm.sh/chart: {{ include "kubin.chart" . }}
+{{ include "kubin.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-{{- if .Values.labels.component }}
-app.kubernetes.io/component: {{ .Values.labels.component }}
-{{- end }}
-{{- if .Values.global.labels }}
-{{- with .Values.global.labels }}
-{{- toYaml . | nindent 0 }}
-{{- end }}
-{{- end }}
 {{- end }}
 
-{{/*
-Selector labels
-*/}}
-{{- define "api-gateway.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "api-gateway.name" . }}
+{{- define "kubin.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "kubin.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}

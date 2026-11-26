@@ -1,10 +1,11 @@
 ---
 id: TASK-7
 title: Make the Helm chart deploy kubin
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@agy'
 created_date: '2026-11-17T10:04:00Z'
-updated_date: '2026-11-24T10:32:00Z'
+updated_date: '2026-11-26T09:35:00Z'
 labels:
   - deploy
   - bug
@@ -54,21 +55,21 @@ Server code, Postgres and S3 modes, publishing the chart to a registry, the publ
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 On a fresh kind cluster `skaffold run` brings up kubin and it becomes Ready
-- [ ] #2 Probes use HTTP /healthz for liveness and /readyz for readiness
-- [ ] #3 The rendered image name matches what skaffold builds
-- [ ] #4 kubin runs one replica with SQLite on a PVC that survives a pod restart; replicaCount above 1 fails to render with a clear message
-- [ ] #5 An optional Ingress with TLS takes its class and annotations from values
-- [ ] #6 The api-gateway subchart, its .tgz, Chart.lock and app-of-apps.yaml are gone: `grep -rn api-gateway charts skaffold.yaml docs` prints nothing
-- [ ] #7 `kubin create --server` through a port-forward to the chart Service uploads, and the link opens
-- [ ] #8 docs/self-hosting.md covers installing the chart, and the Local cluster section of docs/development.md is current
+- [x] #1 On a fresh kind cluster `skaffold run` brings up kubin and it becomes Ready
+- [x] #2 Probes use HTTP /healthz for liveness and /readyz for readiness
+- [x] #3 The rendered image name matches what skaffold builds
+- [x] #4 kubin runs one replica with SQLite on a PVC that survives a pod restart; replicaCount above 1 fails to render with a clear message
+- [x] #5 An optional Ingress with TLS takes its class and annotations from values
+- [x] #6 The api-gateway subchart, its .tgz, Chart.lock and app-of-apps.yaml are gone: `grep -rn api-gateway charts skaffold.yaml docs` prints nothing
+- [x] #7 `kubin create --server` through a port-forward to the chart Service uploads, and the link opens
+- [x] #8 docs/self-hosting.md covers installing the chart, and the Local cluster section of docs/development.md is current
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 Manual: kind create cluster --name kubin, skaffold run, kubectl -n kubin-dev wait --for=condition=Ready pod -l app.kubernetes.io/name=kubin --timeout=180s, then an upload through kubectl port-forward
-- [ ] #2 make check passes
-- [ ] #3 helm lint charts/kubin passes, helm template renders with defaults, and fails with replicaCount=2
+- [x] #1 Manual: kind create cluster --name kubin, skaffold run, kubectl -n kubin-dev wait --for=condition=Ready pod -l app.kubernetes.io/name=kubin --timeout=180s, then an upload through kubectl port-forward
+- [x] #2 make check passes
+- [x] #3 helm lint charts/kubin passes, helm template renders with defaults, and fails with replicaCount=2
 <!-- DOD:END -->
 
 ## Implementation Notes
@@ -76,3 +77,9 @@ Server code, Postgres and S3 modes, publishing the chart to a registry, the publ
 <!-- SECTION:NOTES:BEGIN -->
 After TASK-1 the binary is /kubin-server (scratch image, port 8080, no healthcheck subcommand). The subchart is still named api-gateway and app-of-apps.yaml still points ArgoCD at services/<name>.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Replaced the broken api-gateway umbrella chart with a single-container kubin Helm chart (one replica, Recreate strategy, uid/gid/fsGroup 1001, HTTP /healthz and /readyz probes, PVC for /data, optional Ingress with TLS, env and existingSecret, and template failure when replicaCount > 1). Updated skaffold.yaml to build with BuildKit and deploy charts/kubin to kubin-dev. Updated docs/self-hosting.md, docs/development.md, and docs/architecture.md. Verified with helm lint, helm template (defaults, ingress, replicaCount=2 failure), kind + skaffold run, snapshot upload via port-forward, pod restart persistence, and make check.
+<!-- SECTION:FINAL_SUMMARY:END -->

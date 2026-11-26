@@ -23,10 +23,10 @@ The `Dockerfile` is at the repo root because the image needs both `ui/` and `ser
 
 ```bash
 kind create cluster --name kubin
-skaffold dev                 # builds the server image, deploys charts/kubin to kubin-dev
+skaffold dev                 # builds the image, deploys charts/kubin to kubin-dev and port-forwards :8080
 ```
 
-The chart is broken right now: the image path renders wrong and the probes call a subcommand the server doesn't have. TASK-7 fixes both. Until then use `go run`.
+Use `skaffold run` for a one-shot deploy, then `kubectl -n kubin-dev port-forward svc/kubin-dev 8080:8080`.
 
 ## Board
 

@@ -1,107 +1,65 @@
-# Kubin - Main Configuration
+# Kubin runs one replica with SQLite and local blobs on a PVC.
+replicaCount: 1
 
-# Global values shared across all subcharts
-global:
-  # Environment (development, staging, production)
-  environment: production
+image:
+  repository: ghcr.io/3nd3r1/kubin
+  # Defaults to the chart's appVersion when empty.
+  tag: ""
+  pullPolicy: IfNotPresent
 
-  # Image configuration
-  imageRegistry: ghcr.io/3nd3r1/kubin
-  imageTag: "0.1.0"
-  imagePullPolicy: IfNotPresent
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
 
-  # Domain configuration
-  domain: kubin.example.com
+service:
+  type: ClusterIP
+  port: 8080
 
-argocd:
-  enabled: false
-
-# =============================================================================
-# KUBIN SERVICES
-# =============================================================================
-
-# API Gateway - Entry point for all requests
-api-gateway:
+persistence:
   enabled: true
+  size: 10Gi
+  storageClassName: ""
+  accessModes:
+    - ReadWriteOnce
 
-  # Image configuration (inherits from global if not specified)
-  image:
-    repository: kubin-api-gateway
-    # tag: will use global.imageTag
-    # pullPolicy: will use global.imagePullPolicy
+# Extra non-secret environment variables (see docs/self-hosting.md).
+env: {}
+  # SERVER_PUBLIC_URL: https://kubin.example.com
+  # SERVER_TRUSTED_PROXIES: 10.0.0.0/8,172.16.0.0/12
+  # SERVER_SNAPSHOT_TTL: 168h
+  # LOG_LEVEL: info
 
-  # Service configuration
-  service:
-    type: ClusterIP
-    port: 8000
-    targetPort: 8000
+# Name of an existing Secret whose keys are loaded as environment variables.
+existingSecret: ""
 
-  # Deployment configuration
-  replicaCount: 1
-
-  # Resource configuration
-
-  # Environment variables
-  env:
-    SERVER_PORT: "8000"
-
-  # Ingress configuration
-  ingress:
-    enabled: true
-    className: nginx
-    annotations:
-      cert-manager.io/cluster-issuer: "letsencrypt-prod"
-      nginx.ingress.kubernetes.io/rate-limit: "100"
-    hosts:
-      - host: api.kubin.example.com
-        paths:
-          - path: /
-            pathType: Prefix
-    tls:
-      - secretName: kubin-api-tls
-        hosts:
-          - api.kubin.example.com
-
-# =============================================================================
-# INFRASTRUCTURE DEPENDENCIES
-# =============================================================================
-
-# PostgreSQL - Main database for metadata
-postgresql:
+ingress:
   enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: kubin.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: kubin-tls
+  #    hosts:
+  #      - kubin.example.com
 
-# Redis - Caching layer
-redis:
-  enabled: false
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  runAsGroup: 1001
+  fsGroup: 1001
 
-# =============================================================================
-# FUTURE SERVICES (disabled for now)
-# =============================================================================
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
 
-# Upload Orchestrator - Handles snapshot uploads
-upload-orchestrator:
-  enabled: false
-
-# Metadata Service - Manages snapshot metadata
-metadata-service:
-  enabled: false
-
-# Storage Service - Manages S3/file operations
-storage-service:
-  enabled: false
-
-# Log Processor - Processes and indexes logs
-log-processor:
-  enabled: false
-
-# Query Service - Orchestrates data queries
-query-service:
-  enabled: false
-
-# Analytics Service - ClickHouse analytics
-analytics-service:
-  enabled: false
-
-# UI - React web interface
-ui:
-  enabled: false
+resources: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
