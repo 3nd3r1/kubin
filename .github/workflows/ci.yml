@@ -20,9 +20,9 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: ui/package-lock.json
-      - uses: golangci/golangci-lint-action@v8
-        with:
-          version: v2.15.0
-          args: --version
+      - name: Install golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b "$(go env GOPATH)/bin" v2.15.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - run: make -C ui install
       - run: make check
