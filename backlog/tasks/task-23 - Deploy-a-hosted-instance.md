@@ -1,11 +1,11 @@
 ---
 id: TASK-23
 title: Deploy a hosted instance
-status: Blocked
+status: Done
 assignee:
   - '@agy'
 created_date: '2026-11-17T10:05:00Z'
-updated_date: '2026-11-26T09:35:00Z'
+updated_date: '2026-11-26T12:07:00Z'
 labels:
   - deploy
   - tier:4
@@ -52,10 +52,10 @@ doc-1's goal is a link anyone can open, and m-3 ends with "a public instance run
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The instance runs on Coolify with TLS on kubin.ender.fi: `curl -fsS https://kubin.ender.fi/readyz` prints ok
-- [ ] #2 `kubin create --server https://kubin.ender.fi` against a kind cluster prints a link that opens
-- [ ] #3 Snapshots survive a redeploy (the volume is kept)
-- [ ] #4 Deploys run from CI on release tags with no secrets in the repo
+- [x] #1 The instance runs on Coolify with TLS on kubin.ender.fi: `curl -fsS https://kubin.ender.fi/readyz` prints ok
+- [x] #2 `kubin create --server https://kubin.ender.fi` against a kind cluster prints a link that opens
+- [x] #3 Snapshots survive a redeploy (the volume is kept)
+- [x] #4 Deploys run from CI on release tags with no secrets in the repo
 - [x] #5 The site shows a privacy note and an abuse contact
 - [x] #6 deploy/hosted/README.md says what runs where, which secrets exist and where they live, and how to deploy and roll back by hand
 <!-- AC:END -->
@@ -79,3 +79,9 @@ Automated parts complete: added .github/workflows/deploy.yml (triggers on Releas
 6. Abuse email: route abuse@ender.fi (or update the address in ui/src/components/common/layout.tsx and ui/src/pages/home.tsx).
 7. Verify curl -fsS https://kubin.ender.fi/readyz, kubin create --server https://kubin.ender.fi, and persistence across a redeploy.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Deployed kubin to Coolify at https://kubin.ender.fi (project qzupnclcvx0u6gxintavqgla, app doe6ko7hji9owfuupkmm9xwn, named volume at /data, TLS via Traefik). Configured continuous deployment from GitHub Actions (.github/workflows/deploy.yml) using GHCR sha-<commit> tags and GitHub secrets (no secrets in git), documented operations in deploy/hosted/README.md, and added privacy/abuse notice in the UI. Verified live: /readyz returns ok, snapshot upload from kind-kubin-demo opens, survives Coolify redeploy, and cleans up via kubin delete.
+<!-- SECTION:FINAL_SUMMARY:END -->
