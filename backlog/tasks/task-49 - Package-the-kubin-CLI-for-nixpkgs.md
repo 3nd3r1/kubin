@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@agy'
 created_date: '2026-11-26T13:06:00Z'
-updated_date: '2026-11-27T12:28:00Z'
+updated_date: '2026-11-27T12:49:00Z'
 labels:
   - cli
   - deploy
@@ -29,8 +29,8 @@ Nix and NixOS users currently have to install the kubin CLI via curl|sh or build
 <!-- AC:BEGIN -->
 - [x] #1 A root LICENSE file (MIT) is added to the repository matching README.md
 - [x] #2 A tagged GitHub release (v*) exists for nixpkgs to fetch from
-- [ ] #3 A pkgs/by-name/ku/kubin/package.nix derivation builds the kubin binary from cli/ with tests enabled in the Nix sandbox and prints the release version via kubin version
-- [ ] #4 A pull request adding kubin is submitted to NixOS/nixpkgs and passes local nix-build / nixpkgs-review checks
+- [x] #3 A pkgs/by-name/ku/kubin/package.nix derivation builds the kubin binary from cli/ with tests enabled in the Nix sandbox and prints the release version via kubin version
+- [x] #4 A pull request adding kubin is submitted to NixOS/nixpkgs and passes local nix-build / nixpkgs-review checks
 - [ ] #5 README.md documents installing kubin from nixpkgs once the PR is merged
 <!-- AC:END -->
 
@@ -47,4 +47,6 @@ Nix and NixOS users currently have to install the kubin CLI via curl|sh or build
 
 <!-- SECTION:NOTES:BEGIN -->
 Added root MIT LICENSE (fad6290) and published v0.1.0 GitHub release + GHCR image (run 45998043680). Verified install.sh downloads kubin v0.1.0.
+
+Built pkgs/by-name/ku/kubin/package.nix in Nix sandbox (all 8 Go test packages + versionCheckHook -> kubin v0.1.0 + bash/fish/zsh completions) and submitted NixOS/nixpkgs#594083 (https://github.com/NixOS/nixpkgs/pull/594083). Waiting on PR merge before updating README.md (AC #5).
 <!-- SECTION:NOTES:END -->
